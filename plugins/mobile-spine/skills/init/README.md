@@ -59,6 +59,19 @@ A directory tree like:
 Run `claude` from the new directory and walk through `SETUP.md` §9 Week 0
 verification before relying on the isolation model.
 
+## `/feat` slash command (in scaffolded workspaces)
+
+Each scaffolded workspace ships a `/feat` slash command that runs a short
+interview (feature + domain → case auto-detect & confirm → spec source for
+new endpoints → Figma state) and then invokes `pm-agent` to author
+`_tasks/{feature}.md`. The case auto-detector classifies the request as
+A/B/C/D based on `_context/api/{domain}.md` presence, endpoint match, and an
+explicit "backend not built" signal from the user.
+
+Full workflow lives in the scaffolded workspace's `CLAUDE.md` (§Slash
+commands) and `.claude/commands/feat.md`. End users do not need to read this
+plugin's source — they invoke `/feat` after their first `/mobile-spine:init`.
+
 ## Updating the skill
 
 End users update via `/plugin marketplace update claude-code-mobile-spine`.

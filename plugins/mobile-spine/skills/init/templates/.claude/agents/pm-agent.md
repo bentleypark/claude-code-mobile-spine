@@ -178,7 +178,7 @@ Authoring rules:
 - pm-agent has read-only grep capability but intentionally skips it here. Reason: each platform agent knows its repo's conventions best.
 
 Each platform agent's responsibility (referenced for clarity):
-- android-agent / ios-agent: before implementation, grep their own repo with these keywords → decide reuse vs new → record one line in the PR body (`reuse: X / new: Y`).
+- android-agent / ios-agent: before implementation, grep their own repo with these keywords → classify each match as **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated) → record one line in the PR body (`Inventory: reuse X / extend Y / new Z / remove W`).
 - pm-agent final review: confirm both platforms handled each category consistently. Flag unintended divergence.
 
 > The section is still authored when case A is deferred (already implemented). It retains value for future related features.
@@ -236,7 +236,7 @@ gh issue create --repo myorg/myapp-android \
 - [ ] Retrofit integration for the new endpoints (call out non-standard responses such as raw types)
 - [ ] Error code branching
 - [ ] Design parity check
-- [ ] Record self-inventory result in PR body (reuse: X / new: Y)
+- [ ] Record codebase inventory in PR body (`Inventory: reuse X / extend Y / new Z / remove W`)
 EOF
 )"
 
@@ -276,7 +276,7 @@ gh issue create --repo myorg/myapp-ios \
 - [ ] URLSession async/await integration for the new endpoints (call out special-response decoding)
 - [ ] Error code branching
 - [ ] Design parity check
-- [ ] Record self-inventory result in PR body (reuse: X / new: Y)
+- [ ] Record codebase inventory in PR body (`Inventory: reuse X / extend Y / new Z / remove W`)
 EOF
 )"
 ```
@@ -359,7 +359,7 @@ Figma: {connection state — "connected" or "not connected — UI sections defer
 - (e.g.) Dark-card toast: floats at the bottom, auto-dismiss after N seconds
 - ...
 
-> Each platform agent (android-agent / ios-agent) greps its own repo with these keywords right before implementation → decides reuse vs new → records one line in the PR body (`reuse: X / new: Y`).
+> Each platform agent (android-agent / ios-agent) greps its own repo with these keywords right before implementation → classifies each match as reuse (import existing as-is) / extend (modify or add to existing) / new (create from scratch) / remove (delete deprecated) → records one line in the PR body (`Inventory: reuse X / extend Y / new Z / remove W`).
 
 ## Platform differences
 ### Android (Compose / Material3)
