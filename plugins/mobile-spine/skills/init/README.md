@@ -1,0 +1,66 @@
+# `mobile-spine:init` (Claude Code Skill)
+
+Interactive scaffold for a new mobile-spine workspace. Runs a 6-question
+interview and writes the templated files into the directory of your choice
+with placeholders replaced.
+
+This skill is shipped inside the `mobile-spine` plugin in the
+[`bentleypark/claude-code-mobile-spine`](https://github.com/bentleypark/claude-code-mobile-spine)
+marketplace. End users install via `/plugin`; this README documents the
+skill's behavior and is read mostly by contributors browsing the source.
+
+## Install (end users)
+
+```
+/plugin marketplace add bentleypark/claude-code-mobile-spine
+/plugin install mobile-spine@claude-code-mobile-spine
+```
+
+After install, the skill is callable as `/mobile-spine:init`.
+
+## Use
+
+```
+/mobile-spine:init
+```
+
+The skill asks 6 questions:
+
+1. GitHub org / username
+2. App prefix
+3. Base branch (`develop` / `main` / `master` / other)
+4. Figma MCP namespace (default `mcp__figma__*`)
+5. License copyright holder
+6. Install location (default: `$(pwd)/<app>-spine`)
+
+Then writes the scaffolded files. Stops there — `git init` and remote setup
+are intentionally left to the user.
+
+## What gets created
+
+A directory tree like:
+
+```
+<install location>/
+├── CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore
+├── .claude/
+│   ├── settings.json
+│   ├── agents/{api,pm,android,ios}-agent.md
+│   └── commands/feat.md
+├── _context/
+│   ├── operations.md
+│   ├── api/.gitkeep
+│   └── design/.gitkeep
+└── _tasks/.gitkeep
+```
+
+## After scaffolding
+
+Run `claude` from the new directory and walk through `SETUP.md` §9 Week 0
+verification before relying on the isolation model.
+
+## Updating the skill
+
+End users update via `/plugin marketplace update claude-code-mobile-spine`.
+Contributors editing the skill source should update the `version` field in
+the plugin's `plugin.json` so installed users receive the change.

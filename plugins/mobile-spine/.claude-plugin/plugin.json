@@ -1,0 +1,13 @@
+{
+  "name": "mobile-spine",
+  "version": "0.1.0",
+  "description": "Scaffold a mobile-spine workspace — a meta-repo coordinating four Claude Code subagents (api / pm / android / ios) for mobile teams whose Android, iOS, and Backend live in separate repos.",
+  "author": {
+    "name": "bentleypark"
+  },
+  "homepage": "https://github.com/bentleypark/claude-code-mobile-spine",
+  "repository": "https://github.com/bentleypark/claude-code-mobile-spine",
+  "license": "MIT",
+  "skills": "./skills/",
+  "commands": "./commands/"
+}

@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/bentleypark/claude-code-mobile-spine/discussions
+    about: For open-ended questions, share your week 0 results, or discuss
+      adoption tradeoffs. Use issues only for concrete bugs and feature
+      requests.

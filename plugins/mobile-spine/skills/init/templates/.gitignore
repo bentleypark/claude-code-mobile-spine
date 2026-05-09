@@ -1,0 +1,16 @@
+# Personal local settings (never share)
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Note: spine outputs (_tasks/*.md, _context/api/*.md, _context/design/{feature}/)
+# are intentionally tracked. Empty dirs are kept via .gitkeep. If you prefer to
+# treat them as private working notes, ignore them per-team here.

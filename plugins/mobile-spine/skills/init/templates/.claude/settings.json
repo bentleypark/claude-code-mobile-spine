@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(../myapp-android/**)",
+      "Write(../myapp-android/**)",
+      "Edit(../myapp-ios/**)",
+      "Write(../myapp-ios/**)"
+    ],
+    "deny": [
+      "Edit(../myapp-backend/**)",
+      "Write(../myapp-backend/**)"
+    ]
+  }
+}

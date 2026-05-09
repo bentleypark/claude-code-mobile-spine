@@ -1,0 +1,14 @@
+{
+  "name": "claude-code-mobile-spine",
+  "description": "Claude Code plugins for mobile teams whose Android, iOS, and Backend live in separate repos. Currently bundles the mobile-spine plugin (subagent-based scaffolding).",
+  "owner": {
+    "name": "bentleypark"
+  },
+  "plugins": [
+    {
+      "name": "mobile-spine",
+      "source": "./plugins/mobile-spine",
+      "description": "Scaffold a mobile-spine workspace (Android + iOS + Backend in separate repos) with four specialized Claude Code subagents."
+    }
+  ]
+}
