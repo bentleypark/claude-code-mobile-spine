@@ -131,3 +131,38 @@ Report all of the following back to the user in one shot:
 - Identified gaps / conflicts (if any)
 - Issue dry-run bodies × 2 (android / ios)
 - Next action (create issues yes/no; for case A, the implementation-status answer applied)
+
+## Example session
+
+A case-C run (new domain), Figma connected. (`<` lines are your input; the prompts below are paraphrased for brevity — see the procedure above for exact wording.)
+
+```
+> /feat push notification settings - alarm domain
+
+[/feat] What is the feature name and the domain key?
+  Examples: "Email verification - auth" / "Push settings - alarm"
+< Push notification settings — alarm
+
+[/feat] Auto-detected: case C
+  _context/api/alarm.md does not exist → new domain. Correct?
+  [ Correct / Specify a different case ]
+< Correct
+
+[/feat] Where is the spec source for the new endpoint(s) / domain?
+  One of: backend PR URL / OpenAPI file path / external doc URL.
+< https://github.com/myorg/myapp-backend/pull/NNN
+
+[/feat] What is the Figma input state?
+  [ Desktop multi-select ready / Provide nodeIds / No Figma ]
+< Desktop multi-select ready
+
+[/feat] Invoking pm-agent — case C, domain alarm, Figma multi-select
+```
+
+pm-agent then:
+- Runs case-C pre-checks: no `_context/api/alarm.md` → uses the supplied PR as a temporary spec source, adds the case-C warning banner to `_tasks`
+- Phase 0: inventories the multi-selected Figma nodes
+- Writes `_tasks/push-notification-settings.md` with the standard header (Case: C / API Spec: temporary — `https://github.com/myorg/myapp-backend/pull/NNN`, replace with `_context/api/alarm.md` after backend merge / Figma: multi-select) and a `## Candidate assets` keyword list
+- Prints two GitHub issue dry-run bodies (android / ios) — not yet created
+
+You approve issue creation, then hand `_tasks/push-notification-settings.md` to android-agent and ios-agent: each runs phase 1 (inventory via the `## Candidate assets` keywords → implement → diff report), then phase 2 after your explicit approval (commit + Draft PR).
