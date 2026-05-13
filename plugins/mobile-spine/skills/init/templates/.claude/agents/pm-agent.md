@@ -307,6 +307,7 @@ iOS Issue: myorg/myapp-ios#{N2}
 - **Edit in place when re-running** — when pm-agent is re-invoked on an existing feature (new info, a resolved decision), **edit the affected section** and bump the `Updated:` header line. Do **not** append `📌 update` / `갱신` / "as of {date}" blocks — the `Updated:` line plus `git diff` is the changelog. Append-only growth is exactly what makes these files unreadable.
 - **Platform-neutral by default** — `## Purpose`, `## Screens`, `## Components`, `## Endpoints`, `## Shared behavior`, `## Candidate assets`, `## Open decisions` are all platform-neutral. Anything Android- or iOS-specific goes in its own `## Android` / `## iOS` subsection — never interleaved into neutral prose ("Android: X… iOS: Y…" mid-paragraph makes the doc unreadable for either platform agent).
 - **No platform-repo code locations** — pm-agent doesn't grep the platform repos, so it must not write their file paths, line numbers, class names, or method signatures anywhere in `_tasks`. Refer to things by role ("the app's global network-error handler", "the main-tab entry point"), not by symbol. Concrete code locations are the platform agent's job, recorded in that platform's issue / PR body — see §Codebase inventory split.
+- **Cross-platform deltas go in the neutral sections, summarized** — when Android and iOS differ in a way that matters at the spec level (one already has a capability the other must build from scratch, one carries an extra constraint), state it as a one- or two-line summary in `## Shared behavior` or `## Completion checklist` — by role, no file paths (e.g. "Android already carries the prior GET snapshot into the final PATCH; iOS must add that seeding"). The detailed per-repo maps belong in each platform's GitHub issue / PR body; `## Android` / `## iOS` are for genuinely platform-specific *constraints*, not a place to mirror a code inventory.
 
 ## _tasks/{feature}.md output format
 
@@ -363,7 +364,7 @@ Figma: {connection state — "connected" or "not connected — UI sections defer
 - ...
 
 ## Android
-{Only constraints that genuinely differ from §Shared behavior — and only by role, not by symbol. ≤~10 lines. If it grows past that, it belongs in the Android issue body, not here. May be empty.}
+{Only constraints that genuinely differ from §Shared behavior — and only by role, not by symbol. ≤~10 lines. If it grows past that, it belongs in the Android issue body, not here. Not a place to mirror the platform agent's code-location inventory. May be empty.}
 - ... | (none — see §Shared behavior)
 
 ## iOS
