@@ -19,10 +19,12 @@ Role: mobile PM + design spec extraction.
 Allowed paths:
 - `_tasks/` (read/write)
 - `_context/api/`, `_context/design/` (read)
-- `../myapp-backend/` (read — only for stale-check `git log`)
+- `../myapp-backend/` (read — **only** for the stale-check `git log`; do not read backend source files)
 
 If a write attempt is detected outside these paths, abort:
 "[pm-agent] Path outside allowed scope: {path}. Aborting."
+
+**pm-agent does not read platform-repo source.** It never opens `../myapp-android/` or `../myapp-ios/` files. (Backend `../myapp-backend/` is governed separately by the allowed-paths rule above — stale-check `git log` only, no source files.) Its only window into the platforms is text the agents/tooling produce — the two GitHub issue bodies, the two PR bodies, and `_tasks/{feature}.md` (each platform agent's spec-term self-report). The cross-platform consistency review (below) works from those, not from reading code. (Reading platform source to "verify" consistency would be platform invasion and is forbidden, the same way grepping platform repos for `## Candidate assets` is — that's the platform agent's job.)
 
 ## Step 1 — Case classification (run this first)
 
@@ -174,7 +176,7 @@ Authoring rules:
 
 Each platform agent's responsibility (referenced for clarity):
 - android-agent / ios-agent: before implementation, grep their own repo with these keywords → classify each match as **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated) → record one line in the PR body (`Inventory: reuse X / extend Y / new Z / remove W`).
-- pm-agent final review: compare the one-line `Inventory:` summary from each platform's PR body. Flag unintended divergence.
+- pm-agent final review: a document-level pass over the two PR bodies / issue bodies / `_tasks` (no platform-source reading) — compare the one-line `Inventory:` summaries and the spec-term behavior descriptions, flag unintended divergence. See §Cross-platform consistency review.
 
 > **Inventory results do not flow back into `_tasks`.** A platform agent's grep findings — the file paths / classes it will touch — live in that platform's GitHub issue or PR body, never re-merged into `_tasks/{feature}.md`. `_tasks` stays the platform-neutral spec; it must not accumulate per-repo code locations.
 
@@ -382,7 +384,7 @@ Figma: {connection state — "connected" or "not connected — UI sections defer
 - [ ] iOS implementation (myorg/myapp-ios#{N2})
 - [ ] Design parity check (after Figma connection)
 - [ ] API integration verified
-- [ ] Cross-platform behavior consistency (pm-agent final review)
+- [ ] Cross-platform behavior consistency — pm-agent final review (document-level: PR bodies + issue bodies + `_tasks`, no platform-source reading; see §Cross-platform consistency review)
 - [ ] {case C only} Refresh _context after backend merge + replace API Spec path here
 ```
 
@@ -410,3 +412,16 @@ pm-agent **only authors** `_tasks/{feature}.md`. Tick checkboxes after PR merge 
     {Figma not connected: 'UI sections need authoring after Figma connection.'}
     {Case C: 'After backend merge, refresh _context via api-agent and replace the API Spec path.'}
     {Case A deferred: 'No issues created; _tasks kept as a verification artifact.'}"
+
+## Cross-platform consistency review (after both PRs exist)
+
+Once android-agent and ios-agent have each opened their PR, do a final pass — **document-level, not code-level**:
+
+- Inputs: the two **PR bodies**, the two **issue bodies**, and `_tasks/{feature}.md`. Do **not** open `../myapp-android/` or `../myapp-ios/` source (§Safety rule). The platform agents' descriptions are pm-agent's only window into what they did.
+- Compare what the two PRs *say* they did, against the spec:
+  - **Same gate / entry-point location** (by role — e.g. "main-tab entry"), not the same file path. If one PR says "gate at main entry", the other says "gate in login callback only", that's spec-level divergence.
+  - **Same entry-point logic** — both PRs implemented the spec's flow / matrix the same way; neither silently skipped a branch the other handled.
+  - **Same resolutions for `## Open decisions`** — neither platform reverted a PM-resolved decision.
+  - **Inventory categorization parity** — the `Inventory: reuse X / extend Y / new Z / remove W` lines categorize the spec's shared assets the same way (e.g. if Android marks "global error handler" as `reuse` and iOS marks it as `new`, that's a category mismatch worth flagging — even though the underlying code is naturally different per platform).
+- **On divergence**: flag it for the user + the two agents to reconcile. pm-agent does **not** edit either platform repo. Output is a short list of inconsistencies + which agent should adjust.
+- **If a PR body doesn't describe the behavior in spec terms**, so consistency can't be judged from text alone: say so, ask the agent to amend its PR body — never read the platform repo to find out.

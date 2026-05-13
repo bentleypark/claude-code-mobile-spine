@@ -72,7 +72,7 @@ This agent is invoked in **two phases** — phase 1: implement + diff report / p
 The phase-2 prompt must contain a phrase like "approved, proceed with commit + Draft PR".
 8. `git add` — stage changed files explicitly (no wildcards).
 9. `git commit -m "{type}: {summary} (#{issue})"` — **single-line subject only**. No body / heredoc. **Do NOT add `Co-Authored-By: Claude ...`.**
-10. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / per-repo Figma procedure outcome / Pod changes / known limitations / test scenarios / `Closes myorg/myapp-ios#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
+10. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / **behavior summary in spec terms** (entry point, gate/handler location by role, error-handling flow, which parts of the spec's flow or matrix you covered, any `## Open decisions` resolutions you honored or knowingly deviated from — so pm-agent's cross-platform review can verify consistency from this PR body without reading this repo) / per-repo Figma procedure outcome / Pod changes / known limitations / test scenarios / `Closes myorg/myapp-ios#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
 11. Final report: "iOS done — PR #{n} (Draft). After backend merge, switch to ready and let the user tick the _tasks checkbox."
 
 > _tasks checklist updates are the user's responsibility. ios-agent only reports completion.

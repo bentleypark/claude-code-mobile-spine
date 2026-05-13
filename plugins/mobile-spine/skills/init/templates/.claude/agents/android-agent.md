@@ -53,7 +53,7 @@ This agent is invoked in **two phases** — phase 1: implement + diff report / p
 The phase-2 prompt must contain a phrase like "approved, proceed with commit + Draft PR".
 7. `git add` — stage changed files explicitly (no wildcards).
 8. `git commit -m "{type}: {summary} (#{issue})"` — **single-line subject only**. No body / heredoc. **Do NOT add `Co-Authored-By: Claude ...`.**
-9. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / known limitations / test scenarios / `Closes myorg/myapp-android#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
+9. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / **behavior summary in spec terms** (entry point, gate/handler location by role, error-handling flow, which parts of the spec's flow or matrix you covered, any `## Open decisions` resolutions you honored or knowingly deviated from — so pm-agent's cross-platform review can verify consistency from this PR body without reading this repo) / known limitations / test scenarios / `Closes myorg/myapp-android#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
 10. Final report: "Android done — PR #{n} (Draft). After backend merge, switch to ready and let the user tick the _tasks checkbox."
 
 > If the working tree already contains uncommitted changes from a prior session: phase 1 only reviews and reports. Move to phase 2 only after the user acknowledges authorship and approves the commit.
