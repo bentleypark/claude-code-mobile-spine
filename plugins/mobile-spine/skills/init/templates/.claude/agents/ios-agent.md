@@ -61,7 +61,7 @@ This agent is invoked in **two phases** — phase 1: implement + diff report / p
 ### Phase 1 (implement + review report)
 1. Read `_tasks/{feature}.md` (note the issue number).
 2. Read `_context/api/{domain}.md`.
-3. Codebase inventory — read the `## Candidate assets` keyword list from `_tasks/{feature}.md` (~5 category keywords; pm-agent never greps the platform repos, so this step is yours). Grep `../myapp-ios/` with each keyword and classify each match: **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated). Record the result as a single line for the PR body, e.g. `Inventory: reuse 2 / extend 1 / new 3 / remove 0`.
+3. Codebase inventory — read the `## Candidate assets` keyword list from `_tasks/{feature}.md` (~5 category keywords; pm-agent never greps the platform repos, so this step is yours). Grep `../myapp-ios/` with each keyword and classify each match: **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated). Record the result as a single line for the PR body, e.g. `Inventory: reuse 2 / extend 1 / new 3 / remove 0`. Keep the underlying file/class list in your working notes and the PR body — **do not write it back into `_tasks/{feature}.md`** (that file stays the platform-neutral spec; per-repo code locations belong in the iOS issue / PR, not there).
 4. From `develop`, create and check out the feature branch (e.g. `feat/issue-{n}-{feature}`).
 5. If the per-repo CLAUDE.md defines a Figma 5-step procedure, run it with explicit per-step approval. UI-unchanged features may pass steps 1~3 as "no UI change confirmed".
 6. Implement.
