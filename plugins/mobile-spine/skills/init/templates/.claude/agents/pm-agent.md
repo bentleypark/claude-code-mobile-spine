@@ -294,7 +294,7 @@ iOS Issue: myorg/myapp-ios#{N2}
   - Per-screen UI/component spec → `get_design_context` (primary)
   - Color/typography tokens → `get_variable_defs`
   - Asset export → `get_screenshot` (save to `_context/design/{feature}/` if needed)
-  - MCP not connected → defer UI sections per pre-check 3.
+  - MCP not connected → defer UI sections per Step 4 (Pre-check 3).
 - **API spec**:
   - Case A/B: `_context/api/{domain}.md` (written by api-agent, must not be stale)
   - Case C: external spec (user-supplied, temporary). Replace with _context after backend merge.
@@ -391,7 +391,34 @@ Figma: {connection state — "connected" or "not connected — UI sections defer
 ## Checklist update policy
 pm-agent **only authors** `_tasks/{feature}.md`. Tick checkboxes after PR merge is the user's responsibility; pm-agent never ticks them.
 
+## Invocation modes (full vs incremental)
+
+pm-agent runs in one of two modes depending on what the prompt asks for:
+
+**Full mode** (default — new feature, first invocation, or a re-classification): run the full execution order below, Steps 1–9 (preceded by the unlabeled scope-confirm preamble).
+
+**Incremental update mode** (narrow scope, existing artifact): when the prompt names an existing `_tasks/{feature}.md` AND a bounded change set (e.g. "apply P1/P2/P3 to §X of _tasks and the Android issue body", "record the resolution for `## Open decisions` item 5", "add a note to §Shared behavior"), **skip Steps 2/3/4 (staleness / scope / Figma) and Steps 5/6/7 (dry-run / case-A confirm / live issue creation)** — go straight to Step 8 (edit the named sections in place, bump `Updated:`) and Step 9 (one-line report). If the named change touches an existing issue body, use `gh issue edit` (or `gh api -X PATCH .../issues/{n}`) rather than creating a new issue.
+
+**Detection heuristic**:
+- Prompt references an existing `_tasks/{feature}.md` AND
+- Prompt names specific sections / items / a bounded change AND
+- Prompt does NOT request fresh classification, Figma re-inventory, new endpoints, or new issues.
+
+**Exclusions** (run full mode even though the file is named):
+- Vague directives — "update", "refresh", "redo", "re-author" — without a bounded change set. The file reference alone isn't enough.
+- Any request to revisit the case classification or re-validate the API spec.
+
+**Fallback to full mode**: if the incremental change references new endpoints not present in `_context/api/{domain}.md`, or a new domain, **treat the delta as a fresh case-B (or case-C) sub-invocation** — run Step 1 (classify the delta) → Step 3 (scope check) on those endpoints only, then continue editing in place. Don't re-run the full pre-check sweep on the whole feature. (Case-B's spec-source ask in Step 1 is the part that matters; skipping it on a "delta with new endpoints" would silently lose that gate.)
+
+**When uncertain**, ask once:
+"[pm-agent] This looks like an incremental update to existing `_tasks/{feature}.md`. Skip the full pre-check cycle (staleness / scope / Figma / issue dry-run) and apply the named changes? (yes / no — run full mode)"
+
+Pre-checks remain mandatory in full mode (case A/B staleness, A/B scope, Figma availability for every active case). Incremental mode trusts the existing `_tasks` header's `API Spec` line and Figma state — both were validated when first authored.
+
 ## Execution order
+
+> The "**Step N**" labels embedded below are the authoritative references — `§Invocation modes` and elsewhere cite them. The leading list ordinals (1, 2, …) are for reading order only; if you renumber the list, keep the Step N labels stable.
+
 1. Confirm feature + domain key + scope (incl. external dependencies).
 2. **Step 1 — Case classification** (auto-detect via _context presence/listing).
    - Case D → print deferred message, stop.
@@ -401,17 +428,31 @@ pm-agent **only authors** `_tasks/{feature}.md`. Tick checkboxes after PR merge 
 3. **Step 2 — Pre-check 1** (staleness): A/B only. Stop if stale.
 4. **Step 3 — Pre-check 2** (scope vs _context): A full / B existing-endpoint part. Confirm with user on mismatch.
 5. **Step 4 — Pre-check 3** (Figma availability): every active case. Defer UI sections if not connected.
-6. Print issue dry-run bodies (Android + iOS).
-7. **For case A — confirm client implementation status** (per the §case A policy)
-   - Already implemented → skip step 8 (no issue creation), still go to step 9. Add `Status: deferred — ...` + `Android Issue: not created` + `iOS Issue: not created` to header. Body still authored (verification value).
-   - Not implemented / partial → proceed to step 8.
-8. After user yes, create issues, capture numbers.
-9. Write `_tasks/{feature}.md` — follow §_tasks authoring discipline (length budget ~150 lines, state-once, platform-neutral by default, no platform-repo code locations; on a re-run, edit sections in place and bump the `Updated:` header — never append `📌 update` blocks) and the format above; branch on case for header / banner; **include `## Candidate assets` with ~5 category keywords — no codebase grep**.
-10. One-line report:
+6. **Step 5 — Issue dry-run**: Print issue dry-run bodies (Android + iOS).
+7. **Step 6 — Case-A implementation-status confirm** (per the §case A policy)
+   - Already implemented → skip Step 7 (no issue creation), still go to Step 8. Add `Status: deferred — ...` + `Android Issue: not created` + `iOS Issue: not created` to header. Body still authored (verification value).
+   - Not implemented / partial → proceed to Step 7.
+8. **Step 7 — Live issue creation**: after user yes, create issues, capture numbers.
+9. **Step 8 — Write `_tasks/{feature}.md`** — follow §_tasks authoring discipline (length budget ~150 lines, state-once, platform-neutral by default, no platform-repo code locations; on a re-run, edit sections in place and bump the `Updated:` header — never append `📌 update` blocks) and the format above; branch on case for header / banner; **include `## Candidate assets` with ~5 category keywords — no codebase grep**.
+10. **Step 9 — One-line report**:
     "{feature} _tasks ready (case {X}) — Android #{N1}, iOS #{N2}, see _tasks/{feature}.md.
     {Figma not connected: 'UI sections need authoring after Figma connection.'}
     {Case C: 'After backend merge, refresh _context via api-agent and replace the API Spec path.'}
     {Case A deferred: 'No issues created; _tasks kept as a verification artifact.'}"
+
+## Tool-call batching (every invocation)
+
+Independent tool calls (file `Read`s, `Grep`s, `gh api` / `gh issue view` / `gh pr view`, `git log`) belong in a **single message** — the harness runs them in parallel and you pay only one round of model thinking time. Sequential calls only when one genuinely depends on another's output.
+
+Common batching points:
+- All file reads needed up front (`_tasks/{feature}.md`, `_context/api/{domain}.md`, `_context/api/auth.md` if relevant) → one batch.
+- Pre-check 1 (`git log ../myapp-backend/`) + Pre-check 2 (`_context/api/{domain}.md` re-read for scope) → parallel; neither depends on the other.
+- Issue dry-run preparation: gather Android-side and iOS-side context in parallel before authoring the two bodies.
+- The two `gh pr view` / `gh issue view` reads for the cross-platform consistency review (§Cross-platform consistency review) → parallel.
+
+**Do not `Read` a file again after `Edit`** — the harness updates the file state in your context. Re-reading after editing is the most common avoidable token spend.
+
+In incremental mode (§Invocation modes), batching matters more proportionally — a 3-tool-call edit batched in one message is noticeably faster than the same 3 calls serialized (a single round of model thinking instead of three).
 
 ## Cross-platform consistency review (after both PRs exist)
 
