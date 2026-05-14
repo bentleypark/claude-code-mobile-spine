@@ -6,15 +6,11 @@ allowed-tools: [Read, Write, Bash, AskUserQuestion]
 
 # mobile-spine:init
 
-Bootstrap a new mobile-spine workspace by interviewing the user, then writing
-the templated files into the chosen install location with placeholders
-replaced.
+Bootstrap a new mobile-spine workspace by interviewing the user, then writing the user-customizable files into the chosen install location and a `.claude/mobile-spine.config.yaml` capturing the interview answers.
 
-The static templates this skill consumes live next to this `SKILL.md` under
-`./templates/`. They are full mobile-spine artifacts (CLAUDE.md, SETUP.md,
-README.md, LICENSE, .gitignore, .claude/settings.json, .claude/agents/*.md,
-.claude/commands/feat.md, _context/operations.md, plus `.gitkeep` files for
-empty directories).
+The static templates this skill consumes live next to this `SKILL.md` under `./templates/`. They are workspace-data only — CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore, .claude/settings.json, a thin `.claude/commands/feat.md` stub, _context/operations.md, plus `.gitkeep` files for empty directories.
+
+**Not scaffolded** — the four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) and the full `/feat` command logic are **plugin primitives** (live in `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`, served globally by the plugin). The workspace's `.claude/commands/feat.md` is a thin delegation stub. The agents read `.claude/mobile-spine.config.yaml` at invocation to pick up the workspace's org / app / baseBranch / figma / copyright values. **This means `/plugin marketplace update claude-code-mobile-spine` propagates agent + `/feat` improvements to every workspace automatically — without modifying any workspace-owned file.**
 
 ## Step 1 — Locate the templates directory
 
@@ -109,16 +105,22 @@ questions (base branch, Figma MCP).
 
 ## Step 3 — Confirm and substitute
 
-Build a substitution map from the answers:
+The 5 substituted Qs (`org` / `app` / `baseBranch` / `figmaMcpNamespace` / `copyrightHolder`) flow into **two** outputs:
 
-| Placeholder | Replacement |
-|---|---|
-| `myorg` | Q1 |
-| `myapp` | Q2 |
-| `develop` (whole-word branch refs in `.claude/agents/*.md`, `SETUP.md`, `_context/operations.md` — see precise rule in §4-2) | Q3 |
-| `mcp__figma__*` (literal, in code) | Q4 — see §4-2 for branch-on-value handling |
-| `<your name>` (LICENSE only) | Q5 (skip if "n/a") |
-| Install location | Q6 |
+1. **`.claude/mobile-spine.config.yaml`** (single source of truth — agents read at runtime)
+2. Inline substitution in workspace-owned **doc files** (CLAUDE.md / SETUP.md / README.md / LICENSE / `_context/operations.md` / `.claude/settings.json`) so docs read naturally with the user's specific values.
+
+Build a substitution map for the doc-file inlining:
+
+| Placeholder | Replacement | Substitution scope |
+|---|---|---|
+| `myorg` | Q1 | All processed template files |
+| `myapp` | Q2 | All processed template files |
+| `develop` (whole-word base-branch refs only) | Q3 | `SETUP.md` and `_context/operations.md` only — see precise rule in §4-2 |
+| `<your name>` | Q5 | LICENSE only (skip if "n/a") |
+| Install location | Q6 | Used as the write target, not substituted as text |
+
+> Q4 (`figmaMcpNamespace`) is **not** substituted into any file — the agents read it from `.claude/mobile-spine.config.yaml` at invocation and adapt their figma tool calls accordingly. (v1.x substituted `mcp__figma__*` into agent files at init time; v2.0 ships agents as plugin primitives so that approach no longer applies.)
 
 Print a summary back to the user (plain text, not AskUserQuestion):
 
@@ -137,13 +139,15 @@ If the user says no, stop without writing anything.
 
 ## Step 4 — Scaffold
 
-Create the target directory and write each templated file.
+Create the target directory, write the templated doc files, and write the runtime config.
 
 ### 4-1. Create root and subdirectories
 ```bash
-mkdir -p "<TARGET>/.claude/agents" "<TARGET>/.claude/commands" \
+mkdir -p "<TARGET>/.claude/commands" \
          "<TARGET>/_context/api" "<TARGET>/_context/design" "<TARGET>/_tasks"
 ```
+
+> `.claude/agents/` is **not** created — the four subagents are plugin primitives, served from `plugins/mobile-spine/agents/`. If the user later wants to override an agent at workspace level, they can create `.claude/agents/` themselves and add a file; project-level agents take precedence over plugin-level.
 
 ### 4-2. Process every file in `$TEMPLATES_DIR`
 
@@ -151,12 +155,8 @@ For each source file (preserve relative path):
 1. Read with the Read tool.
 2. Apply substitutions:
    - Global text: `myorg` → Q1, `myapp` → Q2.
-   - Figma MCP namespace (literal-string match `mcp__figma__*`, including the trailing `*`):
-     - If Q4 = `mcp__figma__*` (default): no-op (already correct).
-     - If Q4 = `mcp__figma-desktop__*`: replace literal `mcp__figma__*` with `mcp__figma-desktop__*`.
-     - If Q4 = `none`: **skip substitution** and emit a warning at Step 5 (the `mcp__figma__*` reference in `pm-agent.md` and the SETUP.md §6 Figma block need manual cleanup — see §Notes).
    - In LICENSE only: `<your name>` → Q5 (skip if "n/a").
-   - In agent files (`.claude/agents/*.md`), `SETUP.md`, and `_context/operations.md` only: replace the **whole word** `develop` when it refers to the base branch (i.e. as a literal Git branch name) with Q3. Concretely, substitute every occurrence matching the patterns below:
+   - In `SETUP.md` and `_context/operations.md` only: replace the **whole word** `develop` when it refers to the base branch (i.e. as a literal Git branch name) with Q3. Concretely, substitute every occurrence matching the patterns below:
      - `Base branch: develop` (table cells / inline)
      - `--base develop` (gh / git CLI)
      - `` `develop` `` (backticked branch reference, e.g. "From `develop`" / "off `develop`")
@@ -168,6 +168,8 @@ For each source file (preserve relative path):
 
 For `.gitkeep` files: copy as-is (no substitution).
 
+For the workspace's thin `.claude/commands/feat.md` stub: copy as-is — the stub has no placeholders (it just delegates to `/mobile-spine:feat`).
+
 The full list of files to process:
 
 - `CLAUDE.md`
@@ -176,37 +178,58 @@ The full list of files to process:
 - `LICENSE`
 - `.gitignore`
 - `.claude/settings.json`
-- `.claude/agents/api-agent.md`
-- `.claude/agents/pm-agent.md`
-- `.claude/agents/android-agent.md`
-- `.claude/agents/ios-agent.md`
-- `.claude/commands/feat.md`
+- `.claude/commands/feat.md` (thin stub, copy as-is)
 - `_context/operations.md`
 - `_context/api/.gitkeep` (copy as-is)
 - `_context/design/.gitkeep` (copy as-is)
 - `_tasks/.gitkeep` (copy as-is)
 
-### 4-3. Sanity verify
+### 4-3. Write the runtime config
+
+After the file-processing loop, write `.claude/mobile-spine.config.yaml`. The agents (`pm-agent` / `api-agent` / `android-agent` / `ios-agent`) read this file at every invocation — it's the source of truth for workspace-specific values.
+
+Normalize Q4 and Q5 first:
+
+- `figmaMcpNamespace`: pass through `mcp__figma__*` / `mcp__figma-desktop__*` verbatim. If Q4 was `none`, set to YAML null (`null`, not the string `"none"`).
+- `copyrightHolder`: pass through Q5 verbatim. If Q5 was `n/a`, set to YAML null.
+
+Then write (note the single-quoted heredoc terminator `'EOF'` — prevents shell expansion of any `$` in Q values):
 
 ```bash
-# Confirm critical files exist + no placeholder leakage outside docs
+cat > "<TARGET>/.claude/mobile-spine.config.yaml" <<'EOF'
+mobileSpineSchemaVersion: 1
+org: <Q1>
+app: <Q2>
+baseBranch: <Q3>
+figmaMcpNamespace: <Q4-normalized>
+copyrightHolder: <Q5-normalized>
+EOF
+```
+
+### 4-4. Sanity verify
+
+```bash
+# Core files written
 test -f "<TARGET>/CLAUDE.md" && \
 test -f "<TARGET>/SETUP.md" && \
 test -f "<TARGET>/.claude/settings.json" && \
-test -f "<TARGET>/.claude/agents/pm-agent.md" && \
+test -f "<TARGET>/.claude/mobile-spine.config.yaml" && \
+test -f "<TARGET>/.claude/commands/feat.md" && \
 echo "OK: core files written"
 
+# No placeholder leakage in workspace docs
 grep -l "myorg\|myapp" \
-     "<TARGET>/.claude/agents"/*.md \
-     "<TARGET>/.claude/commands"/*.md \
      "<TARGET>/.claude/settings.json" \
+     "<TARGET>/.claude/commands"/*.md \
      "<TARGET>/CLAUDE.md" \
      "<TARGET>/SETUP.md" \
      "<TARGET>/README.md" \
      "<TARGET>/_context/operations.md" \
      2>/dev/null | head
-# (Should print nothing — every placeholder across templates must be substituted.)
+# (Should print nothing — every placeholder in the workspace-owned docs must be substituted.)
 ```
+
+> The thin `feat.md` stub may legitimately match `myorg`/`myapp` if its text mentions placeholder examples — exclude it from the grep above if needed. Currently the v2.0 stub has no such references, so the simple grep above works.
 
 ## Step 5 — Final report
 
@@ -233,6 +256,6 @@ Next steps:
 ## Notes
 
 - **No git init / no GitHub repo creation.** This skill stops at file creation, by design (per the user's preference). Version control and remote setup are deliberate user actions.
-- **Figma MCP namespace**: if Q4 is `none`, the `mcp__figma__*` reference in `pm-agent.md` `tools` field is left as-is. The user should remove the line manually if they truly do not plan to use Figma MCP.
-- **Stack-specific tweaks (Spring / Nest / FastAPI / Express)**: `api-agent.md` keeps all stacks listed. After scaffolding, the user can prune the unused entries.
-- **License copyright placeholder**: if Q5 is "n/a", `<your name>` remains in the LICENSE — the user fills it in later.
+- **Figma MCP namespace**: stored in `.claude/mobile-spine.config.yaml`. Agents read it at invocation; `null` means "skip all Figma steps". The plugin's `pm-agent` frontmatter lists both `mcp__figma__*` and `mcp__figma-desktop__*` in its `tools` array so either namespace works without per-workspace customization. If your namespace is something else entirely, you can override `pm-agent` at workspace level by creating `.claude/agents/pm-agent.md` with your `tools` list (project-level agents take precedence over plugin-level).
+- **Stack-specific tweaks (Spring / Nest / FastAPI / Express)**: `api-agent.md` keeps all stacks listed. Since the agent is plugin-managed in v2.0, you can't prune unused entries at init time — but you also don't need to. The agent only acts on stacks it finds in `../<app>-backend/`.
+- **License copyright placeholder**: if Q5 is "n/a", `<your name>` remains in the LICENSE and `copyrightHolder` is `null` in the config — the user fills it in later.

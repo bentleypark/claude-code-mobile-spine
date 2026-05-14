@@ -2,8 +2,9 @@
 
 A scaffolded **Claude Code mobile-spine workspace** — a lightweight meta-repo
 that sits next to your `myapp-android`, `myapp-ios`, and `myapp-backend` repos.
-It carries no production code, only markdown specs, agent definitions, and run
-notes that orchestrate Claude Code across all three.
+It carries no production code, only markdown specs, run notes, and a workspace config
+(`.claude/mobile-spine.config.yaml`) read by the plugin-provided agents that orchestrate
+Claude Code across all three repos.
 
 ---
 
@@ -41,8 +42,8 @@ claude
 | `CLAUDE.md` | Routing-only entry point. Auto-loaded on session start. |
 | `SETUP.md` | Phased adoption guide (week 0 verification → week 3 full rollout). |
 | `.claude/settings.json` | Isolation guard: `deny` should block writes to `../myapp-backend/` (verify in week 0 — see SETUP.md §9 Item 3). |
-| `.claude/agents/` | The four subagent definitions (api / pm / android / ios). |
-| `.claude/commands/feat.md` | `/feat` slash command — 4-item interview before pm-agent. |
+| `.claude/mobile-spine.config.yaml` | Workspace values (`org`, `app`, `baseBranch`, `figmaMcpNamespace`, `copyrightHolder`). Read by every agent at invocation — edit this if your branch convention or org changes. |
+| `.claude/commands/feat.md` | Thin delegation stub for `/feat` — forwards to `/mobile-spine:feat`. The real interview logic + the four subagents (api / pm / android / ios) live in the mobile-spine plugin (`plugins/mobile-spine/agents/`, `plugins/mobile-spine/commands/`) and auto-update via `/plugin marketplace update`. |
 | `_context/api/{domain}.md` | Backend API specs authored by api-agent. |
 | `_context/design/{feature}/` | Per-feature Figma assets (when MCP not connected). |
 | `_context/operations.md` | Run log: weekly retros, measurements, decisions. |

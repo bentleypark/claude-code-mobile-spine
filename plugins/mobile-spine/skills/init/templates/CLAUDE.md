@@ -13,6 +13,7 @@ Outputs:
 - `_context/api/*.md` — backend API specs (api-agent reads ../myapp-backend/ → writes here)
 - `_context/design/{feature}/` — Figma assets pulled per feature
 - `_tasks/{feature}.md` — the platform-neutral feature spec (pm-agent author; 1:1 with both repos' GitHub issues). Lean by design: ~150 lines, state-once, no per-repo code locations — those live in the GitHub issues, not here. See pm-agent.md §_tasks authoring discipline.
+- `.claude/mobile-spine.config.yaml` — workspace-specific values (`org` / `app` / `baseBranch` / `figmaMcpNamespace` / `copyrightHolder`). Read by every agent at invocation. **Single source of truth** — if your branch convention or org changes, edit this file (no scattered substitutions across agent files).
 
 Operational base:
 - `SETUP.md` — phased adoption plan, week-1/2/3 entry criteria, validation checklist
@@ -30,27 +31,24 @@ mobile-spine/
 │   └── design/{feature}/              # design assets
 ├── _tasks/{feature}.md                # pm-agent output
 └── .claude/
-    ├── agents/                        # 4 subagent definitions
-    │   ├── api-agent.md
-    │   ├── pm-agent.md
-    │   ├── android-agent.md
-    │   └── ios-agent.md
     ├── commands/
-    │   └── feat.md                    # /feat interview → pm-agent
+    │   └── feat.md                    # thin stub → /mobile-spine:feat
+    ├── mobile-spine.config.yaml       # workspace values (org/app/baseBranch/figma/copyright)
     └── settings.json                  # isolation guard (deny rules)
 ```
 
-## Subagent routing (4 agents)
+The four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) are **plugin primitives** — they live in `plugins/mobile-spine/agents/` (served globally by the plugin), not in your workspace's `.claude/agents/`. Plugin updates (`/plugin marketplace update claude-code-mobile-spine`) propagate agent improvements automatically. If you want to override an agent locally, create `.claude/agents/<name>.md` in this workspace — project-level agents take precedence over plugin-level.
+
+## Subagent routing (4 agents — all plugin-provided)
 
 | When | Subagent | Output / scope | Definition |
 |---|---|---|---|
-| Backend changed → spec refresh | `api-agent` | Writes `_context/api/*.md`. Read-only on myapp-backend | `.claude/agents/api-agent.md` |
-| New feature _tasks | `pm-agent` | Writes `_tasks/*.md`. Reads `_context/api/` + Figma MCP. Does not grep platform code | `.claude/agents/pm-agent.md` |
-| Android implementation | `android-agent` | Modifies myapp-android only. Compose conventions | `.claude/agents/android-agent.md` |
-| iOS implementation | `ios-agent` | Modifies myapp-ios only. SwiftUI; honors `myapp-ios/CLAUDE.md` over spine rules | `.claude/agents/ios-agent.md` |
+| Backend changed → spec refresh | `api-agent` | Writes `_context/api/*.md`. Read-only on myapp-backend | plugin: `plugins/mobile-spine/agents/api-agent.md` |
+| New feature _tasks | `pm-agent` | Writes `_tasks/*.md`. Reads `_context/api/` + Figma MCP. Does not grep platform code | plugin: `plugins/mobile-spine/agents/pm-agent.md` |
+| Android implementation | `android-agent` | Modifies myapp-android only. Compose conventions | plugin: `plugins/mobile-spine/agents/android-agent.md` |
+| iOS implementation | `ios-agent` | Modifies myapp-ios only. SwiftUI; honors `myapp-ios/CLAUDE.md` over spine rules | plugin: `plugins/mobile-spine/agents/ios-agent.md` |
 
-Each agent's responsibilities, allowed paths, and pre-check procedure live in
-its own definition file. The table above is just an entry index.
+Each agent reads `.claude/mobile-spine.config.yaml` at invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, etc.). Agent responsibilities, allowed paths, and pre-check procedures live in the plugin-side definition files. The table above is just an entry index.
 
 ## 4-case classification (pm-agent runs this on every call)
 
@@ -61,20 +59,23 @@ its own definition file. The table above is just an entry index.
 | **C** | New domain (`_context/api/{domain}.md` does not exist) | Author with an external spec source (temporary). After backend merge, refresh _context via api-agent and replace the path |
 | **D** | Backend not built + no spec source | Defer _tasks creation. Print message and stop |
 
-Details in `.claude/agents/pm-agent.md` §Step 1.
+Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-agent.md` — or browse on GitHub).
 
 ## Slash commands
 
-| Command | Use | Definition |
+| Command | Use | Where the logic lives |
 |---|---|---|
-| `/feat [note]` | Interview for a new feature → invoke pm-agent | `.claude/commands/feat.md` |
+| `/feat [note]` | Workspace shortcut → delegates to `/mobile-spine:feat` | thin stub: `.claude/commands/feat.md` |
+| `/mobile-spine:feat [note]` | Interview for a new feature → invoke pm-agent | plugin: `plugins/mobile-spine/commands/feat.md` |
+| `/mobile-spine:init` | (Re-)scaffold a workspace | plugin: `plugins/mobile-spine/commands/init.md` + `skills/init/SKILL.md` |
 
 `/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / Figma state) and constructs the pm-agent prompt. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no-Figma → no invention) fire automatically on each call.
 
 ## Auto-loaded channels
 
 - **CLAUDE.md (this file)** — auto-loaded on session start. Routing and the directory map are immediately visible.
-- **Subagent definitions** — `.claude/agents/*.md` are loaded **only at session start**. After editing, restart Claude Code (see `_context/operations.md` §operational discoveries).
+- **Subagent definitions** — plugin-provided agents are **discovered** at session start (their frontmatter is registered so Claude can invoke them) but their *bodies* are loaded on demand, not pinned into the main session's context. After a plugin update (`/plugin marketplace update`), restart Claude Code so the new definitions are picked up.
+- **`.claude/mobile-spine.config.yaml`** — not auto-loaded into context, but read by every agent at invocation to resolve workspace values. Edit this file directly if your org / app / branch / figma namespace changes.
 - **User memory** (optional) — if your Claude Code setup uses a persistent memory directory, its index loads automatically. Useful for user / feedback / project / reference notes that should outlive a session.
 
 ## Safety rules / isolation guards (summary)

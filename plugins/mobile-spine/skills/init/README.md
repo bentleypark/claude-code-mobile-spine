@@ -45,14 +45,16 @@ A directory tree like:
 ├── CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore
 ├── .claude/
 │   ├── settings.json
-│   ├── agents/{api,pm,android,ios}-agent.md
-│   └── commands/feat.md
+│   ├── mobile-spine.config.yaml         # runtime config (org/app/baseBranch/figma/copyright)
+│   └── commands/feat.md                 # thin stub → /mobile-spine:feat
 ├── _context/
 │   ├── operations.md
 │   ├── api/.gitkeep
 │   └── design/.gitkeep
 └── _tasks/.gitkeep
 ```
+
+The four subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`) and the full `/feat` command logic are **plugin primitives** (under `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`) — served globally by the plugin, not copied to the workspace. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 ## After scaffolding
 
@@ -68,9 +70,7 @@ new endpoints → Figma state) and then invokes `pm-agent` to author
 A/B/C/D based on `_context/api/{domain}.md` presence, endpoint match, and an
 explicit "backend not built" signal from the user.
 
-Full workflow lives in the scaffolded workspace's `CLAUDE.md` (§Slash
-commands) and `.claude/commands/feat.md`. End users do not need to read this
-plugin's source — they invoke `/feat` after their first `/mobile-spine:init`.
+Full workflow lives in the plugin's `commands/feat.md` (the real logic). The workspace's `.claude/commands/feat.md` is a 5-line delegation stub that forwards to `/mobile-spine:feat`. Plain `/feat` works ergonomically; plugin updates propagate automatically.
 
 ## Updating the skill
 

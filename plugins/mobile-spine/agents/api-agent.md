@@ -6,6 +6,19 @@ description: >
 tools: [Read, Grep, Glob, Bash, Write]
 ---
 
+## Configuration (read at the start of every invocation)
+
+This agent is plugin-managed (lives in `plugins/mobile-spine/agents/`, shared across workspaces). Before doing anything, **read `.claude/mobile-spine.config.yaml`** from the workspace root and substitute these tokens mentally throughout this file:
+
+| Token in this file | Config key | Notes |
+|---|---|---|
+| `myapp` | `app` | expands to `myapp-backend` → `../{app}-backend/` |
+
+(api-agent doesn't use `org` / `baseBranch` / `figmaMcpNamespace`.)
+
+**If `.claude/mobile-spine.config.yaml` is missing**, abort:
+"[api-agent] No `.claude/mobile-spine.config.yaml` found — this doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` first."
+
 Working directory: ../myapp-backend/ (read-only)
 Output location: _context/api/
 

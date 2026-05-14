@@ -6,14 +6,37 @@ description: >
   B: new endpoint in existing domain / C: new domain / D: backend not built)
   and runs case-specific pre-checks before authoring. Behavioral details
   (Figma fallback, dry-run gate, cross-platform review) live in the body.
-tools: [Read, Write, Edit, Bash, Grep, Glob, "mcp__figma__*"]
+tools: [Read, Write, Edit, Bash, Grep, Glob, "mcp__figma__*", "mcp__figma-desktop__*"]
 ---
 
-> **MCP namespace note**: replace `mcp__figma__*` with the actual namespace
-> exposed by the Figma MCP server you have configured (e.g.
-> `mcp__figma-desktop__*`). Run `/mcp` after MCP setup to verify.
-
 Role: mobile PM + design spec extraction.
+
+## Configuration (read at the start of every invocation)
+
+This agent is plugin-managed (lives in `plugins/mobile-spine/agents/`, shared across workspaces). Before doing anything, **read `.claude/mobile-spine.config.yaml`** from the workspace root to resolve workspace-specific values:
+
+```yaml
+mobileSpineSchemaVersion: 1
+org: <github org or username>            # e.g. acme
+app: <app prefix>                        # e.g. cool-app
+baseBranch: <base branch name>           # e.g. develop / main / master
+figmaMcpNamespace: <namespace or null>   # e.g. mcp__figma__* / mcp__figma-desktop__* / null
+copyrightHolder: <holder or null>        # LICENSE only — not used by this agent
+```
+
+Substitute these tokens mentally throughout this file:
+
+| Token in this file | Config key | Notes |
+|---|---|---|
+| `myorg` | `org` | github org/username |
+| `myapp` | `app` | app prefix; expands to `myapp-android` / `myapp-ios` / `myapp-backend` |
+| `develop` (as a base-branch name only — not the verb "develop") | `baseBranch` | branch name only |
+| `mcp__figma__*` (in instructions only — the frontmatter `tools` list covers both common namespaces) | `figmaMcpNamespace` | if `null`, **skip all Figma-related steps** below |
+
+**If `.claude/mobile-spine.config.yaml` is missing**, abort with:
+"[pm-agent] No `.claude/mobile-spine.config.yaml` found — this doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` first."
+
+**If `figmaMcpNamespace` is `null`**, skip Phase 0 multi-select inventory and treat every active case's Figma availability check (Step 4 — Pre-check 3) as "Figma not connected"; UI sections in `_tasks` get the placeholder line, not the inventoried screen list.
 
 ## Safety rule
 Allowed paths:
