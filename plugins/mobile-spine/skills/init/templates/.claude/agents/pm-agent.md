@@ -19,10 +19,12 @@ Role: mobile PM + design spec extraction.
 Allowed paths:
 - `_tasks/` (read/write)
 - `_context/api/`, `_context/design/` (read)
-- `../myapp-backend/` (read — only for stale-check `git log`)
+- `../myapp-backend/` (read — **only** for the stale-check `git log`; do not read backend source files)
 
 If a write attempt is detected outside these paths, abort:
 "[pm-agent] Path outside allowed scope: {path}. Aborting."
+
+**pm-agent does not read platform-repo source.** It never opens `../myapp-android/` or `../myapp-ios/` files. (Backend `../myapp-backend/` is governed separately by the allowed-paths rule above — stale-check `git log` only, no source files.) Its only window into the platforms is text the agents/tooling produce — the two GitHub issue bodies, the two PR bodies, and `_tasks/{feature}.md` (each platform agent's spec-term self-report). The cross-platform consistency review (below) works from those, not from reading code. (Reading platform source to "verify" consistency would be platform invasion and is forbidden, the same way grepping platform repos for `## Candidate assets` is — that's the platform agent's job.)
 
 ## Step 1 — Case classification (run this first)
 
@@ -52,12 +54,7 @@ If the spec is already finalized in an external doc, re-invoke as case C."
 Ask the user:
 "[pm-agent] {domain} has no _context yet — handling as case C. What is the spec source? (backend PR URL / OpenAPI file path / external doc URL)"
 
-After receiving:
-- _tasks "API Spec" line: `API Spec (temporary): {external source} — replace with _context/api/{domain}.md after backend merge`
-- Add a banner near the top of _tasks:
-  ```
-  > ⚠️ Case C — temporary spec. After backend merge, refresh _context with api-agent and revalidate the API Spec path / endpoint table in this file.
-  ```
+After receiving, enter case-C mode: the `API Spec` line and the **one-line** case-C banner in `_tasks` follow the output-format block below (`§_tasks/{feature}.md output format`). Keep the banner to one line — do not let it grow on re-runs.
 
 ## Step 2 — Pre-check 1: staleness (time-based)
 
@@ -128,14 +125,14 @@ Therefore at task kickoff:
 > but run the inventory above as Phase 0. Gaps and spec/design conflicts
 > emerge as a side effect of the analysis.
 
-UI sections = screen list, component list, per-screen specs, color/typography/layout notes.
+UI sections = the `## Screens` list and the `## Components` table (plus any per-screen color/typography/layout notes within them).
 
 When Figma is not connected:
 - Each UI section is a single placeholder line:
   ```
   > Fill in after Figma connection — do not invent from text alone
   ```
-- Endpoint table, platform-specific guidance (token storage / network), and completion criteria are filled normally.
+- `## Endpoints`, `## Shared behavior`, and `## Completion checklist` are filled normally.
 
 > Even if the user says "go ahead with text only", confirm once more:
 > "[pm-agent] Figma is not connected. Leave UI sections empty, or take a user-written text spec to fill them?"
@@ -168,18 +165,20 @@ Therefore in case A, after printing the dry-run body and **before** calling
 
 > Case A only. Cases B/C are by definition not yet implemented (new endpoint or new domain), so skip this check.
 
-## Candidate assets section (codebase inventory split)
+## Codebase inventory split (pm-agent vs platform agents)
 
-The `## Candidate assets` section in _tasks lists ~5 category keywords. **pm-agent does not grep the platform repos** — actual inventory is performed by each platform agent right before implementation.
+The `## Candidate assets` section in `_tasks` lists **~5 category keywords, nothing more**. **pm-agent does not grep the platform repos** — actual inventory is performed by each platform agent right before implementation.
 
 Authoring rules:
 - Only category keywords derived from the Figma inventory (e.g. OTP 6-digit input, countdown timer, email-format validator, toast, raw-color → token mapping candidates).
-- Do not invent specific class / function names — categories only.
+- **Never write platform-repo file paths, line numbers, class names, or method signatures** — pm-agent doesn't grep the platform repos, so anything that specific is either hallucinated or copied from a platform agent's transient inventory (which goes stale immediately and bloats this file). Categories only.
 - pm-agent has read-only grep capability but intentionally skips it here. Reason: each platform agent knows its repo's conventions best.
 
 Each platform agent's responsibility (referenced for clarity):
 - android-agent / ios-agent: before implementation, grep their own repo with these keywords → classify each match as **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated) → record one line in the PR body (`Inventory: reuse X / extend Y / new Z / remove W`).
-- pm-agent final review: confirm both platforms handled each category consistently. Flag unintended divergence.
+- pm-agent final review: a document-level pass over the two PR bodies / issue bodies / `_tasks` (no platform-source reading) — compare the one-line `Inventory:` summaries and the spec-term behavior descriptions, flag unintended divergence. See §Cross-platform consistency review.
+
+> **Inventory results do not flow back into `_tasks`.** A platform agent's grep findings — the file paths / classes it will touch — live in that platform's GitHub issue or PR body, never re-merged into `_tasks/{feature}.md`. `_tasks` stays the platform-neutral spec; it must not accumulate per-repo code locations.
 
 > The section is still authored when case A is deferred (already implemented). It retains value for future related features.
 
@@ -299,7 +298,18 @@ iOS Issue: myorg/myapp-ios#{N2}
 - **API spec**:
   - Case A/B: `_context/api/{domain}.md` (written by api-agent, must not be stale)
   - Case C: external spec (user-supplied, temporary). Replace with _context after backend merge.
-- **Per-repo CLAUDE.md**: when authoring "iOS platform differences", honor any per-repo Figma procedure defined in `../myapp-ios/CLAUDE.md`.
+- **Per-repo CLAUDE.md**: when authoring the `## iOS` section, honor any per-repo Figma procedure defined in `../myapp-ios/CLAUDE.md`.
+
+## _tasks authoring discipline (read before writing)
+
+`_tasks/{feature}.md` is a **spec**, not a running log. Keep it lean:
+
+- **Length budget** — a finished `_tasks` fits in roughly two screens (~150 lines / ~1500 words). If it's longer, the spec isn't decided yet: resolve the items in `## Open decisions`, don't write more prose. A 15k-word `_tasks` is a symptom, not thoroughness.
+- **State each fact once** — if the same constraint applies in several places, state it in the most relevant section and reference it elsewhere by `§<section name>`. Never re-explain the same thing in three sections.
+- **Edit in place when re-running** — when pm-agent is re-invoked on an existing feature (new info, a resolved decision), **edit the affected section** and bump the `Updated:` header line. Do **not** append `📌 update` / `갱신` / "as of {date}" blocks — the `Updated:` line plus `git diff` is the changelog. Append-only growth is exactly what makes these files unreadable.
+- **Platform-neutral by default** — `## Purpose`, `## Screens`, `## Components`, `## Endpoints`, `## Shared behavior`, `## Candidate assets`, `## Open decisions` are all platform-neutral. Anything Android- or iOS-specific goes in its own `## Android` / `## iOS` subsection — never interleaved into neutral prose ("Android: X… iOS: Y…" mid-paragraph makes the doc unreadable for either platform agent).
+- **No platform-repo code locations** — pm-agent doesn't grep the platform repos, so it must not write their file paths, line numbers, class names, or method signatures anywhere in `_tasks`. Refer to things by role ("the app's global network-error handler", "the main-tab entry point"), not by symbol. Concrete code locations are the platform agent's job, recorded in that platform's issue / PR body — see §Codebase inventory split.
+- **Cross-platform deltas go in the neutral sections, summarized** — when Android and iOS differ in a way that matters at the spec level (one already has a capability the other must build from scratch, one carries an extra constraint), state it as a one- or two-line summary in `## Shared behavior` or `## Completion checklist` — by role, no file paths (e.g. "Android already carries the prior GET snapshot into the final PATCH; iOS must add that seeding"). The detailed per-repo maps belong in each platform's GitHub issue / PR body; `## Android` / `## iOS` are for genuinely platform-specific *constraints*, not a place to mirror a code inventory.
 
 ## _tasks/{feature}.md output format
 
@@ -310,71 +320,72 @@ Case: {A | B | C}
 Status: {optional — for case A deferred: "deferred — already implemented on both platforms (confirmed {YYYY-MM-DD}). No issues created; _tasks kept as a verification artifact."}
 Android Issue: {myorg/myapp-android#{N1} | not created (case A deferred)}
 iOS Issue: {myorg/myapp-ios#{N2} | not created (case A deferred)}
-Created: {YYYY-MM-DD HH:MM}
+Created: {YYYY-MM-DD}
+Updated: {YYYY-MM-DD — bump on every re-run; this line + git diff is the changelog}
 API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | case C: temporary — {external source}}
 Figma: {connection state — "connected" or "not connected — UI sections deferred"}
 
-{For case C, banner near the top:}
-> ⚠️ Case C — temporary spec. After backend merge, refresh _context with api-agent and revalidate the API Spec path / endpoint table in this file.
+{For case C, a ONE-LINE banner near the top — keep it to one line, do not grow it:}
+> ⚠️ Case C — temporary spec. After backend merge, refresh _context with api-agent and revalidate the API Spec path / endpoint table here.
 
 ## Purpose
-{1-2 lines on user value}
+{1-3 sentences: user value + why now. Not implementation.}
 
-## Screen list (Figma frame names)
+## Screens
+{Figma not connected:}
+> Fill in after Figma connection — do not invent from text alone
+
+{Figma connected — list only; mark reuse vs new, no implementation detail:}
+- {screen} (node {id}) — reuse | new
+- ...
+
+## Components
 {Figma not connected:}
 > Fill in after Figma connection — do not invent from text alone
 
 {Figma connected:}
-- screen 1 (node {id})
-- screen 2 (node {id})
-
-## Component list
-{Figma not connected:}
-> Fill in after Figma connection — do not invent from text alone
-
-{Figma connected:}
-| Component | Figma node ID | Size / color / state notes |
-|---|---|---|
-| ... | ... | ... |
+| Component | Figma node ID | reuse / new | Size / color / state notes |
+|---|---|---|---|
+| ... | ... | ... | ... |
 
 ## Endpoints
 - Domain spec: {case A/B: `_context/api/{domain}.md` | case C: {external source, temporary}}
-- In-scope endpoints (passed pre-check):
-  - `POST /xxx/yyy` — purpose
-  - `GET  /xxx/zzz` — purpose
+- In-scope (passed pre-check):
+  - `POST /xxx/yyy` — purpose · request DTO · response · auth
 - Out of scope:
   - `POST /xxx/aaa` — reason
 
 ## Shared behavior (Android & iOS)
-- Input validation rules
-- Error message display policy
-- Post-success navigation
-- Token storage location (e.g. SharedPreferences / Keychain)
-
-## Candidate assets (platform agents inventory their own repo before implementation)
-{~5 category keywords from Figma inventory, one line each. pm-agent does NOT grep the platform repos — categories only.}
-- (e.g.) OTP 6-digit input: auth code field with auto-focus advance, oneTimeCode contentType
-- (e.g.) Countdown timer: mm:ss display, ticks per second, callback on expiry
-- (e.g.) Inline error + X-icon input: X icon on the right of the field on error, message inline below
-- (e.g.) Dark-card toast: floats at the bottom, auto-dismiss after N seconds
+{The actual logic — platform-neutral. Validation rules, error-display policy, navigation, token-storage location, any gate/interceptor behavior described by role ("the app's global 403 handler"), never by symbol.}
 - ...
 
-> Each platform agent (android-agent / ios-agent) greps its own repo with these keywords right before implementation → classifies each match as reuse (import existing as-is) / extend (modify or add to existing) / new (create from scratch) / remove (delete deprecated) → records one line in the PR body (`Inventory: reuse X / extend Y / new Z / remove W`).
-
-## Platform differences
-### Android (Compose / Material3)
+## Candidate assets
+{~5 category keywords from the Figma inventory, one line each. Categories only — no file paths, no class names, no line numbers. Platform agents grep their own repo with these before implementing (see §Codebase inventory split above).}
+- (e.g.) OTP 6-digit input: auth code field with auto-focus advance
+- (e.g.) Countdown timer: mm:ss display, callback on expiry
 - ...
 
-### iOS (SwiftUI / HIG; honor `../myapp-ios/CLAUDE.md` Figma procedure if any)
-- ...
+## Android
+{Only constraints that genuinely differ from §Shared behavior — and only by role, not by symbol. ≤~10 lines. If it grows past that, it belongs in the Android issue body, not here. Not a place to mirror the platform agent's code-location inventory. May be empty.}
+- ... | (none — see §Shared behavior)
+
+## iOS
+{Same as §Android. Plus: if `../myapp-ios/CLAUDE.md` defines a Figma 5-step procedure, note that it applies. ≤~10 lines. May be empty.}
+- ... | (none — see §Shared behavior)
+
+## Open decisions
+{Numbered items still needing a PM/stakeholder decision. When one is resolved, replace the item with its resolution in ONE line — do not keep a "was X, now Y" trail. Empty list = spec fully decided.}
+1. {decision needed} — {options}
+{or:}
+- (none — spec fully decided)
 
 ## Completion checklist
 - [ ] Android implementation (myorg/myapp-android#{N1})
 - [ ] iOS implementation (myorg/myapp-ios#{N2})
 - [ ] Design parity check (after Figma connection)
 - [ ] API integration verified
-- [ ] Cross-platform behavior consistency (pm-agent final review)
-- [ ] {case C only} Refresh _context after backend merge + replace API Spec path in this file
+- [ ] Cross-platform behavior consistency — pm-agent final review (document-level: PR bodies + issue bodies + `_tasks`, no platform-source reading; see §Cross-platform consistency review)
+- [ ] {case C only} Refresh _context after backend merge + replace API Spec path here
 ```
 
 ## Checklist update policy
@@ -395,9 +406,22 @@ pm-agent **only authors** `_tasks/{feature}.md`. Tick checkboxes after PR merge 
    - Already implemented → skip step 8 (no issue creation), still go to step 9. Add `Status: deferred — ...` + `Android Issue: not created` + `iOS Issue: not created` to header. Body still authored (verification value).
    - Not implemented / partial → proceed to step 8.
 8. After user yes, create issues, capture numbers.
-9. Write `_tasks/{feature}.md` (format above; branch on case for header / banner; **include `## Candidate assets` with ~5 category keywords — no codebase grep**).
+9. Write `_tasks/{feature}.md` — follow §_tasks authoring discipline (length budget ~150 lines, state-once, platform-neutral by default, no platform-repo code locations; on a re-run, edit sections in place and bump the `Updated:` header — never append `📌 update` blocks) and the format above; branch on case for header / banner; **include `## Candidate assets` with ~5 category keywords — no codebase grep**.
 10. One-line report:
     "{feature} _tasks ready (case {X}) — Android #{N1}, iOS #{N2}, see _tasks/{feature}.md.
     {Figma not connected: 'UI sections need authoring after Figma connection.'}
     {Case C: 'After backend merge, refresh _context via api-agent and replace the API Spec path.'}
     {Case A deferred: 'No issues created; _tasks kept as a verification artifact.'}"
+
+## Cross-platform consistency review (after both PRs exist)
+
+Once android-agent and ios-agent have each opened their PR, do a final pass — **document-level, not code-level**:
+
+- Inputs: the two **PR bodies**, the two **issue bodies**, and `_tasks/{feature}.md`. Do **not** open `../myapp-android/` or `../myapp-ios/` source (§Safety rule). The platform agents' descriptions are pm-agent's only window into what they did.
+- Compare what the two PRs *say* they did, against the spec:
+  - **Same gate / entry-point location** (by role — e.g. "main-tab entry"), not the same file path. If one PR says "gate at main entry", the other says "gate in login callback only", that's spec-level divergence.
+  - **Same entry-point logic** — both PRs implemented the spec's flow / matrix the same way; neither silently skipped a branch the other handled.
+  - **Same resolutions for `## Open decisions`** — neither platform reverted a PM-resolved decision.
+  - **Inventory categorization parity** — the `Inventory: reuse X / extend Y / new Z / remove W` lines categorize the spec's shared assets the same way (e.g. if Android marks "global error handler" as `reuse` and iOS marks it as `new`, that's a category mismatch worth flagging — even though the underlying code is naturally different per platform).
+- **On divergence**: flag it for the user + the two agents to reconcile. pm-agent does **not** edit either platform repo. Output is a short list of inconsistencies + which agent should adjust.
+- **If a PR body doesn't describe the behavior in spec terms**, so consistency can't be judged from text alone: say so, ask the agent to amend its PR body — never read the platform repo to find out.

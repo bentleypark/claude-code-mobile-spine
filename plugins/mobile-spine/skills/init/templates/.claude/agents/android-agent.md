@@ -44,7 +44,7 @@ This agent is invoked in **two phases** — phase 1: implement + diff report / p
 ### Phase 1 (implement + review report)
 1. Read `_tasks/{feature}.md` (note the issue number).
 2. Read `_context/api/{domain}.md`.
-3. Codebase inventory — read the `## Candidate assets` keyword list from `_tasks/{feature}.md` (~5 category keywords; pm-agent never greps the platform repos, so this step is yours). Grep `../myapp-android/` with each keyword and classify each match: **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated). Record the result as a single line for the PR body, e.g. `Inventory: reuse 2 / extend 1 / new 3 / remove 0`.
+3. Codebase inventory — read the `## Candidate assets` keyword list from `_tasks/{feature}.md` (~5 category keywords; pm-agent never greps the platform repos, so this step is yours). Grep `../myapp-android/` with each keyword and classify each match: **reuse** (import existing as-is) / **extend** (modify or add to existing) / **new** (create from scratch) / **remove** (delete deprecated). Record the result as a single line for the PR body, e.g. `Inventory: reuse 2 / extend 1 / new 3 / remove 0`. Keep the underlying file/class list in your working notes and the PR body — **do not write it back into `_tasks/{feature}.md`** (that file stays the platform-neutral spec; per-repo code locations belong in the Android issue / PR, not there).
 4. From `develop`, create and check out the feature branch (use the repo's actual convention if different).
 5. Implement.
 6. **Stop after a diff summary report** (`git status` + change summary + the inventory line from step 3). **Do NOT auto-run `git add` / `git commit` / `gh pr create`.**
@@ -53,7 +53,7 @@ This agent is invoked in **two phases** — phase 1: implement + diff report / p
 The phase-2 prompt must contain a phrase like "approved, proceed with commit + Draft PR".
 7. `git add` — stage changed files explicitly (no wildcards).
 8. `git commit -m "{type}: {summary} (#{issue})"` — **single-line subject only**. No body / heredoc. **Do NOT add `Co-Authored-By: Claude ...`.**
-9. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / known limitations / test scenarios / `Closes myorg/myapp-android#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
+9. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / **behavior summary in spec terms** (entry point, gate/handler location by role, error-handling flow, which parts of the spec's flow or matrix you covered, any `## Open decisions` resolutions you honored or knowingly deviated from — so pm-agent's cross-platform review can verify consistency from this PR body without reading this repo) / known limitations / test scenarios / `Closes myorg/myapp-android#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
 10. Final report: "Android done — PR #{n} (Draft). After backend merge, switch to ready and let the user tick the _tasks checkbox."
 
 > If the working tree already contains uncommitted changes from a prior session: phase 1 only reviews and reports. Move to phase 2 only after the user acknowledges authorship and approves the commit.

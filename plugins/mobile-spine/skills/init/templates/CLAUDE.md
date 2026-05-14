@@ -12,7 +12,7 @@ code — only markdown specs, policies, and run notes.
 Outputs:
 - `_context/api/*.md` — backend API specs (api-agent reads ../myapp-backend/ → writes here)
 - `_context/design/{feature}/` — Figma assets pulled per feature
-- `_tasks/{feature}.md` — implementation specs for both platforms (pm-agent author; 1:1 with both repos' GitHub issues)
+- `_tasks/{feature}.md` — the platform-neutral feature spec (pm-agent author; 1:1 with both repos' GitHub issues). Lean by design: ~150 lines, state-once, no per-repo code locations — those live in the GitHub issues, not here. See pm-agent.md §_tasks authoring discipline.
 
 Operational base:
 - `SETUP.md` — phased adoption plan, week-1/2/3 entry criteria, validation checklist
