@@ -72,7 +72,35 @@ This agent is invoked in **two phases** — phase 1: implement + diff report / p
 The phase-2 prompt must contain a phrase like "approved, proceed with commit + Draft PR".
 8. `git add` — stage changed files explicitly (no wildcards).
 9. `git commit -m "{type}: {summary} (#{issue})"` — **single-line subject only**. No body / heredoc. **Do NOT add `Co-Authored-By: Claude ...`.**
-10. `gh pr create --draft --base develop` — self-contained PR body (change summary / inventory line from step 3 / **behavior summary in spec terms** (entry point, gate/handler location by role, error-handling flow, which parts of the spec's flow or matrix you covered, any `## Open decisions` resolutions you honored or knowingly deviated from — so pm-agent's cross-platform review can verify consistency from this PR body without reading this repo) / per-repo Figma procedure outcome / Pod changes / known limitations / test scenarios / `Closes myorg/myapp-ios#N`). **Do NOT add `🤖 Generated with Claude Code`-type footers.**
+10. `gh pr create --draft --base develop` — self-contained PR body. Use a `## Behavior` heading for the spec-term behavior summary (so the iteration-discipline footer can reference it by name). Sections: change summary / inventory line from step 3 / **`## Behavior`** in spec terms (entry point, gate/handler location by role, error-handling flow, which parts of the spec's flow or matrix you covered, any `## Open decisions` resolutions you honored or knowingly deviated from — so pm-agent's cross-platform review can verify consistency from this PR body without reading this repo) / per-repo Figma procedure outcome / Pod changes / known limitations / test scenarios / `Closes myorg/myapp-ios#N` / **iteration-discipline footer (verbatim text in §Phase 3 below)**. **Do NOT add `🤖 Generated with Claude Code`-type footers.**
 11. Final report: "iOS done — PR #{n} (Draft). After backend merge, switch to ready and let the user tick the _tasks checkbox."
+
+### Phase 3 (after PR open — iteration discipline propagation)
+
+After the initial PR opens, follow-up iteration usually happens in the **platform repo's own Claude session** (e.g. someone opens Claude inside `../myapp-ios/` separately to run builds + tests + push fixes). That session does **not** read `mobile-spine/.claude/agents/*.md` — so the refresh-the-PR-body rule must be propagated through the two self-contained channels mobile-spine *can* reach:
+
+1. **PR body footer — primary channel (high exposure)**. You (ios-agent) append the footer below to the PR body at PR-open time (step 10). It's visible every time anyone views or edits the PR, so it gets re-read on every iteration cycle.
+2. **GitHub Issue body — `## Iteration discipline` section**. pm-agent inserts this at issue creation. First-read context when picking up the work; less frequent re-exposure than the PR footer.
+
+The rule itself, applied by *whichever* session iterates (platform-repo session or this mobile-spine session): when pushing commits that change spec-relevant behavior (entry point / gate or handler location / error-handling flow / parts of the spec's flow or matrix covered / `## Open decisions` resolutions), refresh the PR body's `## Behavior` section **before pushing**. Pure refactors / typo fixes / test-only changes — no refresh needed.
+
+#### Verbatim PR body footer (append at the bottom of the body in step 10)
+
+````markdown
+---
+> **Iteration discipline for this PR** — when pushing fixes that affect spec-relevant behavior (entry point / gate / handler location / error-handling flow / parts of the spec's flow or matrix you covered / `## Open decisions` resolutions), refresh the `## Behavior` section above **before pushing**. Round-trip — never reconstruct from memory:
+>
+> ```
+> gh pr view --json body -q .body > /tmp/pr-body.md   # defaults to PR for current branch
+> # edit only the ## Behavior section
+> gh pr edit --body-file /tmp/pr-body.md              # same — current-branch default
+> ```
+>
+> Pure refactors / typos / test-only changes — no refresh needed. mobile-spine's cross-platform consistency review reads only this body, not your source.
+````
+
+#### If *this* (mobile-spine ios-agent) session is the one iterating
+
+Same rule, same round-trip command. **The round-trip preserves everything in the body — including this footer.** Never strip the footer, never reconstruct the body from memory: that's how the propagation channel dies.
 
 > _tasks checklist updates are the user's responsibility. ios-agent only reports completion.
