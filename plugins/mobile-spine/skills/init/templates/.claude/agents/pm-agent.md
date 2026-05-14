@@ -458,11 +458,44 @@ In incremental mode (§Invocation modes), batching matters more proportionally �
 
 Once android-agent and ios-agent have each opened their PR, do a final pass — **document-level, not code-level**:
 
-- Inputs: the two **PR bodies**, the two **issue bodies**, and `_tasks/{feature}.md`. Do **not** open `../myapp-android/` or `../myapp-ios/` source (§Safety rule). The platform agents' descriptions are pm-agent's only window into what they did.
-- Compare what the two PRs *say* they did, against the spec:
-  - **Same gate / entry-point location** (by role — e.g. "main-tab entry"), not the same file path. If one PR says "gate at main entry", the other says "gate in login callback only", that's spec-level divergence.
-  - **Same entry-point logic** — both PRs implemented the spec's flow / matrix the same way; neither silently skipped a branch the other handled.
-  - **Same resolutions for `## Open decisions`** — neither platform reverted a PM-resolved decision.
-  - **Inventory categorization parity** — the `Inventory: reuse X / extend Y / new Z / remove W` lines categorize the spec's shared assets the same way (e.g. if Android marks "global error handler" as `reuse` and iOS marks it as `new`, that's a category mismatch worth flagging — even though the underlying code is naturally different per platform).
-- **On divergence**: flag it for the user + the two agents to reconcile. pm-agent does **not** edit either platform repo. Output is a short list of inconsistencies + which agent should adjust.
-- **If a PR body doesn't describe the behavior in spec terms**, so consistency can't be judged from text alone: say so, ask the agent to amend its PR body — never read the platform repo to find out.
+### Inputs (text + metadata only — never source)
+
+- The two **PR bodies**, the two **issue bodies**, and `_tasks/{feature}.md` — the spec-term self-reports.
+- The two PRs' **`gh` metadata** (still text/metadata, not source):
+  - `gh pr view {n} --json commits` — commit count, commit messages, commit timestamps. The commit messages themselves carry signal about what behavior changed.
+  - `gh pr view {n} --json body` — the current PR body text (whatever's there *now*; `gh` doesn't expose a body-edit timestamp directly).
+  - `gh pr diff {n} --name-only` — **file names only**, not contents. Used for the scope-mismatch check.
+  - `gh pr view {n} --comments` and `gh issue view {n} --comments` — mid-iteration decisions made in comments that may not have landed in the PR body yet.
+- Do **not** open `../myapp-android/` or `../myapp-ios/` source (§Safety rule). Batch the `gh` calls in a single message (§Tool-call batching).
+
+### Checks
+
+- **Same gate / entry-point location** (by role — e.g. "main-tab entry"), not the same file path. If one PR says "gate at main entry", the other says "gate in login callback only", that's spec-level divergence.
+- **Same entry-point logic** — both PRs implemented the spec's flow / matrix the same way; neither silently skipped a branch the other handled.
+- **Same resolutions for `## Open decisions`** — neither platform reverted a PM-resolved decision.
+- **Inventory categorization parity** — the `Inventory: reuse X / extend Y / new Z / remove W` lines categorize the spec's shared assets the same way (e.g. if Android marks "global error handler" as `reuse` and iOS marks it as `new`, that's a category mismatch worth flagging — even though the underlying code is naturally different per platform).
+- **PR-body freshness (staleness signal)** — `gh` doesn't expose a body-edit timestamp directly, so use the **commit-messages-vs-body content cross-check**: read the last few commit messages on each PR and verify the PR body's behavior summary reflects what those commits did. If a commit message describes a spec-relevant change (gate moved, error path added, flow branch reworked) that the body doesn't mention, the body is stale. **Flag as stale before any other check is meaningful** — ask that agent to refresh its PR body, then re-run the review.
+- **Scope-mismatch signal from `--name-only`** — group the changed file paths into rough categories (network layer / UI / data layer / DI / settings). If one PR touches a category the other doesn't, flag "implementation scope mismatch — intentional?" The file *names* are enough to detect this; the file *contents* are not needed.
+- **Comment-trail check** — skim PR + issue comments for mid-iteration decisions that should have made it into the PR body but didn't. If a comment says "switched the gate to onResume instead of viewDidLoad" but the PR body still says "viewDidLoad", flag the discrepancy.
+
+### On divergence
+
+Flag it for the user + the two agents to reconcile. pm-agent does **not** edit either platform repo. Output is a short list of inconsistencies + which agent should adjust (e.g. "android-agent: refresh PR body to reflect recent commits whose messages describe behavior the body doesn't mention" or "ios-agent + android-agent: gate-location wording differs — reconcile to a single spec phrasing").
+
+If a PR body doesn't describe the behavior in spec terms, say so and ask the agent to amend its PR body — never read the platform repo to find out.
+
+### Limits — best effort, not a guarantee
+
+This review is **best-effort at the text/metadata level**. It catches:
+
+- *described* divergence (the two PR bodies disagree on what was built);
+- *signals of staleness* (commits whose messages describe changes the body doesn't mention, comment-trail vs body drift);
+- *scope mismatches* visible from file-name categories.
+
+It does **not** catch:
+
+- bugs or behaviors that diverge silently while the descriptions agree;
+- subtle UX timing differences (one platform's dialog fires immediately, the other's lags) that wouldn't show up in a behavior-summary;
+- regressions introduced after the latest PR-body refresh.
+
+**Final consistency verification — actual end-to-end testing on both platforms — is the user's responsibility, not pm-agent's.** pm-agent's review tightens the description layer; only running the apps tightens the behavior layer.
