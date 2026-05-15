@@ -89,7 +89,11 @@ questions (base branch, Figma MCP).
 
 ### Q4. Figma MCP namespace (`AskUserQuestion`)
 
-**First, detect installed Figma MCP servers via the CLI.** As of Claude Code v2.x, `claude mcp list` prints one line per configured server in the shape `<name>: <url-or-cmd> - <status>`. The name portion is always followed by `: ` (colon-space), even when the name itself contains colons (e.g. `plugin:supabase:supabase`). Filter for lines containing "figma" (case-insensitive), then strip the `: <url>...` tail to recover the verbatim server name. The namespace is `mcp__<server-name>__*`.
+Q4 has four substeps. **Do them in order; substep 4a is mandatory and gates the rest.**
+
+#### 4a. Detect installed Figma MCP servers (REQUIRED — invoke the Bash tool with this exact block before constructing AskUserQuestion options; do NOT skip)
+
+As of Claude Code v2.x, `claude mcp list` prints one line per configured server in the shape `<name>: <url-or-cmd> - <status>`. The name portion is always followed by `: ` (colon-space), even when the name itself contains colons (e.g. `plugin:supabase:supabase`). Filter for lines containing "figma" (case-insensitive), then strip the `: <url>...` tail to recover the verbatim server name. The namespace is `mcp__<server-name>__*`.
 
 ```bash
 DETECTED_FIGMA=$(claude mcp list 2>/dev/null \
@@ -102,21 +106,30 @@ echo "DETECTED_FIGMA_COUNT=$DETECTED_FIGMA_COUNT"
 [ "$DETECTED_FIGMA_COUNT" -gt 0 ] && printf '%s\n' "$DETECTED_FIGMA" | sed 's/^/DETECTED_FIGMA_NAME=/'
 ```
 
-If the future Claude Code release changes this CLI format, detection degrades silently: `$DETECTED_FIGMA_COUNT` becomes 0 and the fallback option list (below) fires.
+If a future Claude Code release changes this CLI format, detection degrades silently: `$DETECTED_FIGMA_COUNT` becomes 0 and substep 4b takes the fallback branch.
 
-**Then build the question options dynamically:**
+#### 4b. Read the Bash output and pick a branch for 4c
 
-- If `DETECTED_FIGMA_COUNT > 0`, build options as follows:
-  - One option per detected server (up to 3 — `AskUserQuestion` accepts at most 4 options total, and we reserve the 4th slot for `none`). If more than 3 figma servers are detected, keep the first 3 and append a single-sentence note in the question text: "Showing first 3 of N detected — others are still usable; edit `.claude/mobile-spine.config.yaml` after scaffolding."
-  - Each option label: `mcp__<server-name>__*`. Description: "detected via `claude mcp list`".
-  - **Recommended preference**: if `figma-desktop` is among the detected names, mark it `(Recommended)` (it's the official Figma Dev Mode MCP). Otherwise leave none marked — first-detected order is just whatever `claude mcp list` emitted, not an editorial signal.
-  - Final option: `none` — "skip Figma integration for now (UI sections will always be deferred)".
-- If `DETECTED_FIGMA_COUNT == 0` (no figma servers installed, or `claude mcp list` unavailable), fall back to the hardcoded options:
-  - `mcp__figma__*` — generic placeholder (replace after MCP setup via `/mcp`)
-  - `mcp__figma-desktop__*` — official Figma Dev Mode MCP (selection-based; requires Figma paid plan + Desktop app) **(Recommended)**
-  - `none` — skip Figma integration for now (UI sections will always be deferred)
+Parse the output from 4a, then proceed to 4c and use the branch matching `DETECTED_FIGMA_COUNT`:
+- `DETECTED_FIGMA_COUNT > 0` → **dynamic branch**
+- `DETECTED_FIGMA_COUNT == 0` (no figma servers installed, or `claude mcp list` unavailable) → **fallback branch**
 
-Question parameters for `AskUserQuestion`:
+#### 4c. Construct AskUserQuestion options for the chosen branch
+
+**Dynamic branch** (when `DETECTED_FIGMA_COUNT > 0`):
+- One option per detected server, up to 3 — `AskUserQuestion` accepts at most 4 options total, and we reserve the 4th slot for `none`. If more than 3 figma servers are detected, keep the first 3 and append a single-sentence note in the question text: "Showing first 3 of N detected — others are still usable; edit `.claude/mobile-spine.config.yaml` after scaffolding."
+- Each option label: `mcp__<server-name>__*`. Description: "detected via `claude mcp list`".
+- **Recommended preference**: if `figma-desktop` is among the detected names, mark it `(Recommended)` (it's the official Figma Dev Mode MCP). Otherwise leave none marked — first-detected order is just whatever `claude mcp list` emitted, not an editorial signal.
+- Final option: `none` — "skip Figma integration for now (UI sections will always be deferred)".
+
+**Fallback branch** (when `DETECTED_FIGMA_COUNT == 0`):
+- `mcp__figma__*` — generic placeholder (replace after MCP setup via `/mcp`)
+- `mcp__figma-desktop__*` — official Figma Dev Mode MCP (selection-based; requires Figma paid plan + Desktop app) **(Recommended)**
+- `none` — skip Figma integration for now (UI sections will always be deferred)
+
+#### 4d. Invoke AskUserQuestion with the constructed options
+
+Question parameters:
 - Question: "Which Figma MCP server are you using? (this affects pm-agent's `tools` whitelist)"
 - Header: "Figma MCP"
 
@@ -195,10 +208,10 @@ Then ask the user (plain text, not `AskUserQuestion`):
 >   └── <app>-backend/
 > ```
 >
-> Default: `<DEFAULT_TARGET>`
-> Hit enter to accept, or paste an absolute path.
+> Suggested default: `<DEFAULT_TARGET>`
+> Reply `y` (or `yes` / `ok` / `default`) to accept the default, or paste an absolute path.
 
-**If the user's response is empty or whitespace-only, treat it as accepting `<DEFAULT_TARGET>` — substitute it for `<user-answer>` in the normalize block below and do NOT re-prompt.** (Free-form Q&A in Claude Code doesn't auto-substitute the default when Enter is pressed; the model has to do it explicitly.)
+**Trim leading/trailing whitespace and lowercase the user's response before matching.** Recognize any of `y`, `yes`, `ok`, `default`, or an empty / whitespace-only response as accepting `<DEFAULT_TARGET>` — substitute it for `<user-answer>` in the normalize block below and do NOT re-prompt. (The harness doesn't auto-substitute the default for the model, so the prompt asks for an explicit acceptance word. The lowercase-after-trim rule covers natural variants like `Y` / `Yes` / `OK` that `[Y/n]`-style CLIs accept. The empty-input case is kept as a defensive fallback in case the user does press Enter and the harness delivers it.)
 
 **After the user answers, normalize and validate the sibling layout:**
 
