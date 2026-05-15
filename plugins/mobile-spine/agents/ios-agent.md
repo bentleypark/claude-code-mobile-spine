@@ -8,6 +8,24 @@ description: >
 tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
+## Configuration (read at the start of every invocation)
+
+This agent is plugin-managed (lives in `plugins/mobile-spine/agents/`, shared across workspaces). Before doing anything, **read `.claude/mobile-spine.config.yaml`** from the workspace root and substitute these tokens mentally throughout this file:
+
+| Token in this file | Config key | Notes |
+|---|---|---|
+| `myorg` | `org` | github org/username — used in `Closes myorg/myapp-ios#N`, PR body refs |
+| `myapp` | `app` | app prefix — your working directory is `../{app}-ios/` |
+| `develop` (as a base-branch name only — not the verb "develop") | `baseBranch` | `gh pr --base {baseBranch}`, branch creation `git checkout -b feat/...` from `{baseBranch}` |
+
+**If `.claude/mobile-spine.config.yaml` is missing**, abort:
+"[ios-agent] No `.claude/mobile-spine.config.yaml` found in the current working directory. This doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` for a fresh setup, or follow SETUP.md §0 to migrate from v1.x."
+
+**Self-check before the first tool call**: after reading the config, echo back the resolved values once:
+"[ios-agent] Resolved config: org={org}, app={app}, baseBranch={baseBranch} → working in ../{app}-ios/, base branch `{baseBranch}`, issues at {org}/{app}-ios"
+
+Then proceed.
+
 Working directory: ../myapp-ios/
 Stack: Swift, SwiftUI, Combine, async/await (adjust as needed).
 
@@ -77,7 +95,7 @@ The phase-2 prompt must contain a phrase like "approved, proceed with commit + D
 
 ### Phase 3 (after PR open — iteration discipline propagation)
 
-After the initial PR opens, follow-up iteration usually happens in the **platform repo's own Claude session** (e.g. someone opens Claude inside `../myapp-ios/` separately to run builds + tests + push fixes). That session does **not** read `mobile-spine/.claude/agents/*.md` — so the refresh-the-PR-body rule must be propagated through the two self-contained channels mobile-spine *can* reach:
+After the initial PR opens, follow-up iteration usually happens in the **platform repo's own Claude session** (e.g. someone opens Claude inside `../myapp-ios/` separately to run builds + tests + push fixes). That session does **not** read the mobile-spine plugin's agent definitions (this file) — so the refresh-the-PR-body rule must be propagated through the two self-contained channels mobile-spine *can* reach:
 
 1. **PR body footer — primary channel (high exposure)**. You (ios-agent) append the footer below to the PR body at PR-open time (step 10). It's visible every time anyone views or edits the PR, so it gets re-read on every iteration cycle.
 2. **GitHub Issue body — `## Iteration discipline` section**. pm-agent inserts this at issue creation. First-read context when picking up the work; less frequent re-exposure than the PR footer.

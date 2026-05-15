@@ -16,20 +16,25 @@ claude-code-mobile-spine/                            ← marketplace repo root
     └── mobile-spine/                               ← the plugin
         ├── .claude-plugin/
         │   └── plugin.json                         ← plugin manifest (bump version on user-visible changes)
+        ├── agents/                                 ← plugin primitives — globally available subagents
+        │   └── {api,pm,android,ios}-agent.md
+        ├── commands/                               ← plugin primitives — globally available slash commands
+        │   ├── init.md                             ← /mobile-spine:init
+        │   └── feat.md                             ← /mobile-spine:feat
         └── skills/
             └── init/                               ← skill: invoked as /mobile-spine:init
                 ├── SKILL.md                        ← skill behavior
                 ├── README.md                       ← contributor-facing skill notes
-                └── templates/                      ← scaffold source (single source of truth)
+                └── templates/                      ← scaffold source (workspace data only)
                     ├── CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore
-                    ├── .claude/{settings.json, agents/, commands/}
+                    ├── .claude/{settings.json, commands/feat.md (thin stub)}
                     └── _context/operations.md, _tasks/.gitkeep, etc.
 ```
 
-The bundled scaffold (everything that ends up in a user's workspace when they
-run `/mobile-spine:init`) lives under
-`plugins/mobile-spine/skills/init/templates/`. There is **no root-level
-mirror** — the templates directory is the single source of truth.
+Two distinct content classes live in this plugin:
+
+1. **Plugin primitives** (`agents/`, `commands/`) — globally available, served by the Claude Code plugin system. `/plugin marketplace update` propagates changes to every workspace automatically. No per-workspace placeholder substitution; agents read `.claude/mobile-spine.config.yaml` at invocation.
+2. **Scaffold templates** (`skills/init/templates/`) — copied to the user's workspace by `/mobile-spine:init`. Workspace-owned data. Once scaffolded, plugin updates do NOT modify these files; the user owns them.
 
 ## Tone and content rules
 
@@ -42,23 +47,22 @@ and "verified" claims. New content should follow the same rules:
 - **No internal identifiers** — repo names, branches, ticket numbers, or
   observation counts ("4 of 5 nodes missed in Q2 pilot"). Anonymize to
   general statements.
-- **Stay placeholder-friendly** — the skill substitutes `myorg`, `myapp`,
-  `<your name>`, `mcp__figma__*`, and `develop` (whole-word, branch-name uses
-  only) per `plugins/mobile-spine/skills/init/SKILL.md` §4-2. New content
-  that adds any of these tokens must declare its substitution behavior in
-  SKILL.md.
+- **Stay placeholder-friendly (scaffold templates only)** — the init skill substitutes `myorg`, `myapp`, `<your name>` (LICENSE), and `develop` (whole-word, branch-name uses only) per `plugins/mobile-spine/skills/init/SKILL.md` §4-2. The Figma MCP namespace is **not** substituted in v2.0 — it lives in `.claude/mobile-spine.config.yaml` (written by init from Q4) and the plugin's agents read it at invocation. New scaffold-template content that adds any of `myorg`/`myapp`/`<your name>`/`develop` must declare its substitution behavior in SKILL.md.
+- **Plugin primitives (`agents/`, `commands/`) — no init-time substitution.** Agents and `commands/feat.md` use literal token forms (`myorg`, `myapp`, `develop`, etc.) in their body and rely on the Configuration section to instruct mental substitution against the workspace's `.claude/mobile-spine.config.yaml`. Don't add init-time substitution rules for these files.
 
-## Agent definitions inside templates
+## Plugin primitives (`agents/`, `commands/`)
 
-Agent files (`.../templates/.claude/agents/*.md`) are loaded **only at
-session start** in the user's scaffolded workspace. If you change one, the
-only way to test is to:
+The four agent files (`plugins/mobile-spine/agents/*.md`) and the plugin-level `commands/feat.md` are loaded by Claude Code's plugin system at session start and available globally. If you change one:
 
-1. Re-run the skill into a temp directory.
-2. Restart Claude Code in that scaffolded workspace.
+1. Reinstall the plugin from the local checkout (or push to a test marketplace) so the cache picks it up.
+2. Restart Claude Code in a scaffolded workspace.
 3. Re-run the affected flow end-to-end (don't just inspect the new file).
 
 Document the verification you performed in the PR description.
+
+## Scaffold templates (`skills/init/templates/`)
+
+These end up in the user's workspace at init time. After init they're user-owned — the plugin never modifies them. If you change one, future scaffolds get the new content but existing v2.0 workspaces don't (by design — those files are theirs to customize).
 
 ## Skill changes
 

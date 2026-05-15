@@ -5,6 +5,56 @@
 > (`myapp-android`), iOS (`myapp-ios`), and Backend (`myapp-backend`) live in
 > **separate repos**.
 
+> **v2.0 note** — the four subagents and the full `/feat` command logic now live in the **plugin** (`plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`), not in your workspace's `.claude/`. Plugin updates propagate automatically via `/plugin marketplace update`. Your workspace owns: `CLAUDE.md`, `SETUP.md`, `_context/`, `_tasks/`, `.claude/settings.json`, `.claude/mobile-spine.config.yaml`, and a thin `.claude/commands/feat.md` stub. See §0 below if you're migrating from v1.x.
+
+---
+
+## 0. Migrating from v1.x (skip if this is a fresh workspace)
+
+In v1.x, `/mobile-spine:init` copied `.claude/agents/*.md` and a full `.claude/commands/feat.md` into your workspace, then substituted placeholders. Plugin updates didn't reach those copies.
+
+In v2.0, those files live in the plugin. To migrate an existing v1.x workspace:
+
+```bash
+cd <your-v1.x-workspace>
+
+# 1. Delete the stale agent + command copies (plugin now provides them)
+rm -rf .claude/agents
+rm -f .claude/commands/feat.md
+
+# 2. Re-create the thin stub for /feat (5 lines — replaces the full v1.x copy)
+cat > .claude/commands/feat.md <<'EOF'
+---
+description: Kick off _tasks creation for a new feature (mobile-spine /feat shortcut)
+argument-hint: [optional short note — e.g. "push notification settings - alarm domain"]
+---
+
+# /feat — workspace shortcut for `/mobile-spine:feat`
+
+This is a thin delegation stub. The real interview + pm-agent invocation logic lives in the mobile-spine plugin and is updated automatically via `/plugin marketplace update claude-code-mobile-spine`.
+
+Invoke the plugin command with the same arguments:
+
+@/mobile-spine:feat $ARGUMENTS
+EOF
+
+# 3. Create the runtime config (use your v1.x values for org/app/branch/etc.)
+cat > .claude/mobile-spine.config.yaml <<'EOF'
+mobileSpineSchemaVersion: 1
+org: your-github-org
+app: your-app-prefix
+baseBranch: develop                       # or main / master
+figmaMcpNamespace: mcp__figma-desktop__*  # or mcp__figma__* / null
+copyrightHolder: Your Name or Org         # or null
+EOF
+
+# 4. Restart Claude Code in this workspace so the new plugin-level agents load
+```
+
+After migration, `/feat` still works (via the new stub → plugin), and the four subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`) are served by the plugin and auto-update with `/plugin marketplace update`.
+
+**Alternative — simpler for users with light customization**: scaffold a fresh v2.0 workspace via `/mobile-spine:init`, then copy your `_context/`, `_tasks/`, and any CLAUDE.md additions from the v1.x workspace into the new one. No risk of stale agent leftovers.
+
 ---
 
 ## Table of contents
@@ -71,41 +121,44 @@ for prior art on the broader pattern.
 
 > The diagram shows the **steady-state** layout after a few features land.
 > `/mobile-spine:init` only writes the structural files (CLAUDE.md, SETUP.md,
-> README.md, LICENSE, .gitignore, `.claude/agents/`, `.claude/commands/`,
-> `.claude/settings.json`, `_context/operations.md`, plus `.gitkeep`
-> placeholders for `_context/api/`, `_context/design/`, `_tasks/`). Everything
+> README.md, LICENSE, .gitignore, `.claude/settings.json`,
+> `.claude/mobile-spine.config.yaml`, the thin `.claude/commands/feat.md`
+> stub, `_context/operations.md`, plus `.gitkeep` placeholders for
+> `_context/api/`, `_context/design/`, `_tasks/`). The four subagents are
+> plugin primitives — they live in `plugins/mobile-spine/agents/` and are
+> served globally, not copied to your workspace. Everything
 > else (`setup.sh`, `_context/architecture.md`, `_context/design/figma-links.md`,
 > per-domain `_context/api/*.md`, per-feature `_tasks/*.md`) accumulates as
 > you use the spine — api-agent / pm-agent / users add them over time.
 
 ```
 ~/dev/
-├── mobile-spine/          ← claude runs here (new)
-│   ├── CLAUDE.md          ← routing rules, shared conventions
-│   ├── setup.sh           ← repo clone helper (not auto-generated; copy from §3-2 if needed)
+├── mobile-spine/                       ← claude runs here (workspace)
+│   ├── CLAUDE.md                       ← routing rules, shared conventions
+│   ├── setup.sh                        ← repo clone helper (not auto-generated; copy from §3-2 if needed)
 │   ├── .claude/
-│   │   ├── settings.json  ← system-level deny permissions (core)
-│   │   └── agents/
-│   │       ├── api-agent.md
-│   │       ├── pm-agent.md
-│   │       ├── android-agent.md
-│   │       └── ios-agent.md
-│   ├── _tasks/            ← per-feature specs (pm-agent author; tied to GitHub issues)
+│   │   ├── settings.json               ← system-level deny permissions (core)
+│   │   ├── mobile-spine.config.yaml    ← workspace values (org/app/baseBranch/figma/copyright) — agents read at invocation
+│   │   └── commands/
+│   │       └── feat.md                 ← thin stub → /mobile-spine:feat
+│   ├── _tasks/                         ← per-feature specs (pm-agent author; tied to GitHub issues)
 │   │   ├── login.md
 │   │   └── profile.md
 │   └── _context/
 │       ├── architecture.md
-│       ├── operations.md  ← retro after week 1
-│       ├── api/           ← api-agent output (with Updated timestamp)
+│       ├── operations.md               ← retro after week 1
+│       ├── api/                        ← api-agent output (with Updated timestamp)
 │       │   ├── auth.md
 │       │   └── user.md
 │       └── design/
 │           └── figma-links.md
 │
-├── myapp-android/         ← existing Android repo (independent git)
-├── myapp-ios/             ← existing iOS repo (independent git)
-└── myapp-backend/         ← existing backend repo (independent git)
+├── myapp-android/                      ← existing Android repo (independent git)
+├── myapp-ios/                          ← existing iOS repo (independent git)
+└── myapp-backend/                      ← existing backend repo (independent git)
 ```
+
+The four subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`) and the full `/feat` command logic live in the **mobile-spine plugin** (under `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`), served globally — they do not appear under `.claude/` in this workspace. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 > The platform repos do not need to know mobile-spine exists.
 > The spine is operator-level tooling.
@@ -120,7 +173,7 @@ for prior art on the broader pattern.
 mkdir ~/dev/mobile-spine && cd ~/dev/mobile-spine
 git init
 
-mkdir -p .claude/agents .claude/commands _tasks _context/design _context/api
+mkdir -p .claude/commands _tasks _context/design _context/api
 ```
 
 ### 3-2. setup.sh — clone helper for fresh environments
@@ -172,37 +225,20 @@ chmod +x setup.sh
 > isolation between android and ios is reinforced via the `tools` field on each
 > agent (next section).
 
-### 3-4. Reinforce isolation via the agent `tools` field
+### 3-4. Isolation via the agent `tools` field (plugin-shipped — reference only)
 
-The `tools` field in subagent frontmatter restricts which tools the agent can
-call. Simpler and stricter than path deny rules.
+The `tools` field in each subagent's frontmatter restricts which tools the agent can call (simpler and stricter than path deny rules). In v2.0 the agents are plugin primitives — their `tools` frontmatter ships with the plugin and updates automatically via `/plugin marketplace update`. The current shipped defaults:
 
-| Agent | tools | Effect |
-|---|---|---|
-| api-agent | `Read, Grep, Glob, Bash, Write` | myapp-backend write blocked by settings.json deny |
-| pm-agent | `Read, Write, Edit, Bash, Grep, Glob, mcp__figma__*` | Figma MCP tools included |
-| android-agent | `Read, Write, Edit, Bash, Grep, Glob` | base implementation tools |
-| ios-agent | `Read, Write, Edit, Bash, Grep, Glob` | base implementation tools |
+| Agent | tools (canonical source: `plugins/mobile-spine/agents/<name>.md` frontmatter) |
+|---|---|
+| api-agent | `Read, Grep, Glob, Bash, Write` |
+| pm-agent | `Read, Write, Edit, Bash, Grep, Glob, mcp__figma__*, mcp__figma-desktop__*` (covers both common Figma MCP namespaces) |
+| android-agent | `Read, Write, Edit, Bash, Grep, Glob` |
+| ios-agent | `Read, Write, Edit, Bash, Grep, Glob` |
 
-> **pm-agent MCP tools**: Figma MCP registers under a namespace like
-> `mcp__figma__*`. If you do not list it explicitly in `tools`, MCP tool calls
-> are blocked. The exact namespace varies by MCP server name — check it via
-> `/mcp` after setup and adjust.
->
-> Omitting the `tools` field entirely allows all tools. If you are unsure of
-> the MCP namespace at first, you can omit `tools` for pm-agent and rely on
-> the description guard until you confirm.
+> **If your Figma MCP namespace is neither `mcp__figma__*` nor `mcp__figma-desktop__*`** (e.g. a custom server), MCP calls from `pm-agent` will be blocked. Override at workspace level: create `.claude/agents/pm-agent.md` with your namespace added to `tools`. Project-level agents take precedence over plugin-level. Cost: you opt out of plugin updates for `pm-agent`.
 
-Each agent's frontmatter looks like:
-
-```markdown
----
-name: pm-agent
-description: >
-  ...
-tools: [Read, Write, Edit, Bash, Grep, Glob, "mcp__figma__*"]
----
-```
+> The above snapshot reflects v2.0.0. For the live, canonical list, read the actual file under `plugins/mobile-spine/agents/` (or browse on GitHub).
 
 ### 3-5. Run Claude Code
 
@@ -222,12 +258,16 @@ claude
 
 ## 4. Agent definition files
 
-The four agent definitions live under `.claude/agents/`:
+The four agent definitions live in the **mobile-spine plugin**, under `plugins/mobile-spine/agents/`. They are served globally by the plugin — your workspace does **not** carry copies. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 - `api-agent.md` — backend → spec extraction
 - `pm-agent.md` — Figma + spec → _tasks; case classification; pre-checks; issue dry-run
 - `android-agent.md` — Android implementation (two-phase: implement + diff / commit + Draft PR)
 - `ios-agent.md` — iOS implementation (two-phase, with optional per-repo Figma 5-step procedure)
+
+Each reads `.claude/mobile-spine.config.yaml` at every invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, `figmaMcpNamespace`, `copyrightHolder`).
+
+> **Customizing an agent**: create `.claude/agents/<name>.md` in this workspace — project-level agents take precedence over plugin-level. Cost: you opt out of plugin updates for that agent.
 
 Open the files for full responsibilities, allowed paths, and execution order.
 The summary table in [§1](#1-concepts) is just an entry index.

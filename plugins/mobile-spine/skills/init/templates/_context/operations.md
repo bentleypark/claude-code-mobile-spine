@@ -162,9 +162,11 @@ Frequency of android-agent attempting to modify ../myapp-ios/ etc.
 
 ### Subagents load only at session start
 
-Editing `.claude/agents/*.md` mid-session does not take effect — invoking the
-new/edited agent gives `Agent type '{agent}' not found` or stale behavior.
-**Always restart Claude Code after agent definition or settings.json changes.**
+Changes to subagent definitions don't take effect mid-session — invoking the
+new/edited agent may give a "not found" or stale-behavior result.
+**Always restart Claude Code after agent definition or `settings.json` changes.**
+This applies regardless of whether the change is to a plugin agent (after
+`/plugin marketplace update`) or a workspace override at `.claude/agents/<name>.md`.
 Plan session restarts at every phase transition (week 0 → 1, week 1 → 2, etc.).
 
 ---
