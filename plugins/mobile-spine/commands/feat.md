@@ -14,7 +14,7 @@ The workspace's `/feat` is a thin stub that delegates here — both invocations 
 
 This command operates on a scaffolded mobile-spine workspace. Before running the interview, verify `.claude/mobile-spine.config.yaml` exists in the current directory — if not, abort:
 
-"[/feat] No `.claude/mobile-spine.config.yaml` found — this doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` first."
+"[/feat] No `.claude/mobile-spine.config.yaml` found in the current working directory. This doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` for a fresh setup, or follow SETUP.md §0 to migrate from v1.x."
 
 (pm-agent reads the same config at invocation; the check here is a fast-fail so the user doesn't sit through the 4-item interview before discovering the workspace isn't set up.)
 

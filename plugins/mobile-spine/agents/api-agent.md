@@ -17,7 +17,12 @@ This agent is plugin-managed (lives in `plugins/mobile-spine/agents/`, shared ac
 (api-agent doesn't use `org` / `baseBranch` / `figmaMcpNamespace`.)
 
 **If `.claude/mobile-spine.config.yaml` is missing**, abort:
-"[api-agent] No `.claude/mobile-spine.config.yaml` found — this doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` first."
+"[api-agent] No `.claude/mobile-spine.config.yaml` found in the current working directory. This doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` for a fresh setup, or follow SETUP.md §0 to migrate from v1.x."
+
+**Self-check before the first tool call**: after reading the config, echo back the resolved values once:
+"[api-agent] Resolved config: app={app} → reading ../{app}-backend/"
+
+Then proceed.
 
 Working directory: ../myapp-backend/ (read-only)
 Output location: _context/api/

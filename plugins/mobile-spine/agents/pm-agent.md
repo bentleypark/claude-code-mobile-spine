@@ -34,7 +34,12 @@ Substitute these tokens mentally throughout this file:
 | `mcp__figma__*` (in instructions only — the frontmatter `tools` list covers both common namespaces) | `figmaMcpNamespace` | if `null`, **skip all Figma-related steps** below |
 
 **If `.claude/mobile-spine.config.yaml` is missing**, abort with:
-"[pm-agent] No `.claude/mobile-spine.config.yaml` found — this doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` first."
+"[pm-agent] No `.claude/mobile-spine.config.yaml` found in the current working directory. This doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` for a fresh setup, or follow SETUP.md §0 to migrate from v1.x."
+
+**Self-check before the first tool call**: after reading the config, echo back the resolved values once so the user can spot a bad-config early:
+"[pm-agent] Resolved config: org={org}, app={app}, baseBranch={baseBranch}, figmaMcpNamespace={figmaMcpNamespace or 'null (Figma skipped)'}"
+
+Then proceed. This one-line self-check catches silent mis-substitution (LLM forgetting which token maps to which key) before any real action.
 
 **If `figmaMcpNamespace` is `null`**, skip Phase 0 multi-select inventory and treat every active case's Figma availability check (Step 4 — Pre-check 3) as "Figma not connected"; UI sections in `_tasks` get the placeholder line, not the inventoried screen list.
 

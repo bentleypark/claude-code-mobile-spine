@@ -19,7 +19,12 @@ This agent is plugin-managed (lives in `plugins/mobile-spine/agents/`, shared ac
 | `develop` (as a base-branch name only — not the verb "develop") | `baseBranch` | `gh pr --base {baseBranch}`, branch creation `git checkout -b feat/...` from `{baseBranch}` |
 
 **If `.claude/mobile-spine.config.yaml` is missing**, abort:
-"[ios-agent] No `.claude/mobile-spine.config.yaml` found — this doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` first."
+"[ios-agent] No `.claude/mobile-spine.config.yaml` found in the current working directory. This doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` for a fresh setup, or follow SETUP.md §0 to migrate from v1.x."
+
+**Self-check before the first tool call**: after reading the config, echo back the resolved values once:
+"[ios-agent] Resolved config: org={org}, app={app}, baseBranch={baseBranch} → working in ../{app}-ios/, base branch `{baseBranch}`, issues at {org}/{app}-ios"
+
+Then proceed.
 
 Working directory: ../myapp-ios/
 Stack: Swift, SwiftUI, Combine, async/await (adjust as needed).
