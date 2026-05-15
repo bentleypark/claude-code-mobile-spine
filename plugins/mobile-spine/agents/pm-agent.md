@@ -47,6 +47,7 @@ Then proceed. This one-line self-check catches silent mis-substitution (LLM forg
 Allowed paths:
 - `_tasks/` (read/write)
 - `_context/api/`, `_context/design/` (read)
+- `_context/operations.md` (read/write — limited to §Post-merge close-out Phase B retro line; never edited during normal Step 1–9 authoring)
 - `../myapp-backend/` (read — **only** for the stale-check `git log`; do not read backend source files)
 
 If a write attempt is detected outside these paths, abort:
@@ -443,7 +444,7 @@ Figma: {connection state — "connected" or "not connected — UI sections defer
 ```
 
 ## Checklist update policy
-pm-agent **only authors** `_tasks/{feature}.md`. Tick checkboxes after PR merge is the user's responsibility; pm-agent never ticks them.
+pm-agent **only authors** `_tasks/{feature}.md`. The `_tasks` header (`Status:`, `Updated:`, API Spec, Issue numbers, Figma state) is pm-agent's responsibility throughout the feature lifecycle — initial authoring (Step 8) and on close-out (§Post-merge close-out Phase A.2 / B.1). The `## Completion checklist` checkboxes are different: ticking them after PR merge is the user's verification record, and **pm-agent never ticks them**.
 
 ## Invocation modes (full vs incremental)
 
@@ -452,6 +453,8 @@ pm-agent runs in one of two modes depending on what the prompt asks for:
 **Full mode** (default — new feature, first invocation, or a re-classification): run the full execution order below, Steps 1–9 (preceded by the unlabeled scope-confirm preamble).
 
 **Incremental update mode** (narrow scope, existing artifact): when the prompt names an existing `_tasks/{feature}.md` AND a bounded change set (e.g. "apply P1/P2/P3 to §X of _tasks and the Android issue body", "record the resolution for `## Open decisions` item 5", "add a note to §Shared behavior"), **skip Steps 2/3/4 (staleness / scope / Figma) and Steps 5/6/7 (dry-run / case-A confirm / live issue creation)** — go straight to Step 8 (edit the named sections in place, bump `Updated:`) and Step 9 (one-line report). If the named change touches an existing issue body, use `gh issue edit` (or `gh api -X PATCH .../issues/{n}`) rather than creating a new issue.
+
+**Post-merge close-out** is also an incremental-mode pattern. Prompts like "both PRs merged — close out `_tasks/{feature}.md`" or "양 PR 머지 완료 — _tasks 마무리" trigger the §Post-merge close-out procedure (Phase A; re-invoked for Phase B once a downstream release gate clears). It re-runs §Cross-platform consistency review at the merge point + edits the `_tasks` header in place; otherwise it follows the same skip-Steps-2–7 discipline as a regular incremental update.
 
 **Detection heuristic**:
 - Prompt references an existing `_tasks/{feature}.md` AND
@@ -552,5 +555,41 @@ It does **not** catch:
 - bugs or behaviors that diverge silently while the descriptions agree;
 - subtle UX timing differences (one platform's dialog fires immediately, the other's lags) that wouldn't show up in a behavior-summary;
 - regressions introduced after the latest PR-body refresh.
+
+## Post-merge close-out (after both PRs merge)
+
+Triggered by an explicit user invocation — typical prompts: "both PRs merged — close out `_tasks/{feature}.md`", "양 PR 머지 완료 — _tasks 마무리", or "wrap up the {feature} feature". This is **incremental mode** (§Invocation modes) — skip Steps 2–7; the only Step-equivalent work here is the cross-platform review re-run (Phase A.1) and the `_tasks` header edit (Phase A.2).
+
+### Phase distinguisher (run first)
+
+Before doing any work, read `_tasks/{feature}.md` `Status:` and decide which phase to run:
+
+- `Status:` starts with `In progress` / `Authored` / `Case A deferred` / similar — **or `Status:` is absent** (the line is optional per the `_tasks/{feature}.md` output format above, so most freshly-authored `_tasks` have no `Status:` until close-out adds one) — **and** prompt mentions PRs merged → **Phase A**.
+- `Status:` starts with `PRs merged — ... Pending {gate}` **and** prompt mentions release / finalize / gate cleared → **Phase B**.
+- Anything else (e.g. `Status: Complete` already, or a mismatch between header state and prompt intent) → **abort, ask the user** which phase to run. Don't guess.
+
+### Phase A — both PRs merged (typical close-out)
+
+1. **Final cross-platform consistency review** — re-run §Cross-platform consistency review against the merged state. The merge point is the last opportunity to catch a description-vs-commits drift that landed in the final commits before merge. If any divergence is found, flag it to the user (pm-agent does not amend a merged PR's body); proceed with the rest of close-out only after the user acknowledges.
+2. **Update `_tasks/{feature}.md` header in place** (per §_tasks authoring discipline — never append `📌 update` blocks):
+   - `Status:` → `"PRs merged — Android #{N1} (PR #{M1}) / iOS #{N2} (PR #{M2}), {YYYY-MM-DD}.{ release-gate note if applicable, e.g. ' Pending ops deploy + DB migration before client release.'}"`
+   - `Updated:` bumped to today.
+3. **Verify the two GitHub issues are closed.** `gh issue view {N1} --json state -q .state` + `gh issue view {N2} --json state -q .state` in parallel (§Tool-call batching) — each returns plain `OPEN` or `CLOSED` for direct comparison. PR `Closes #N` typically auto-closes the issue on merge; if either is still `OPEN`, **report to the user** with the issue number and ask whether to close. pm-agent does **NOT** close issues directly — closing is a user decision (some teams keep issues open for QA or rollback windows).
+4. **pm-agent does NOT tick the §Completion checklist boxes** — restating the existing §Checklist update policy at close-out time. The checklist is the user's verification record; ticking is their explicit sign-off.
+5. **Release-gate branching**: if the feature carries a downstream release gate (e.g. `_tasks` header or feature spec references a backend ops deploy, a DB migration, an App Store / Play Store rollout), keep `_tasks` in the `"PRs merged — ... Pending {gate}"` state and stop here. Re-invoke pm-agent for Phase B once the gate clears.
+
+### Phase B — release gate cleared (conditional)
+
+Only when Phase A.5 left a gate pending. Triggered by a second user invocation: "{feature} released — finalize `_tasks/{feature}.md`" or equivalent.
+
+1. **`_tasks/{feature}.md` header**: `Status:` → `"Complete — client v{X.Y.Z} released, {YYYY-MM-DD}"` (agent localizes the verb — e.g. "완료" in Korean workspaces if that matches the rest of the file's language). `Updated:` bumped.
+2. **`_context/operations.md` retro line** — add 1–2 lines under the canonical `## Operational discoveries` section (the workspace template ships this heading at `_context/operations.md`; if it's been removed locally, fall back to `## Run-log entries (append below)` which the template also ships). Note concrete operational signals from the rollout: patterns that worked (carryforward of a shared component, an interceptor unification), surprises (caching gotcha, race seen at scale), or follow-up decisions. Keep it factual — no narrative. Do **not** write into `## Week N pilot result …` sections — those are scoped to the week-0/1/2/3 pilot validation phases (SETUP.md §9) and aren't generic per-feature buckets.
+3. **`_tasks/{feature}.md` stays in place as a verification artifact** — same principle as Case A's "deferred — already implemented" output. The file is the long-lived spec-and-completion record for the feature; do not delete or archive.
+
+### What this section does NOT do
+
+- Does not edit the merged PRs' bodies (post-merge edits drop out of the review thread and are easy to miss — corrections belong in commit messages or follow-up PRs). GitHub allows the edit technically; it's a convention, not a platform restriction.
+- Does not run platform-source reads — same §Safety rule as before. PR bodies + issue bodies + `_tasks` are still the only allowed inputs.
+- Does not auto-trigger from a merge webhook; this is always a user-driven invocation.
 
 **Final consistency verification — actual end-to-end testing on both platforms — is the user's responsibility, not pm-agent's.** pm-agent's review tightens the description layer; only running the apps tightens the behavior layer.
