@@ -118,9 +118,11 @@ Parse the output from 4a, then proceed to 4c and use the branch matching `DETECT
 
 **Dynamic branch** (when `DETECTED_FIGMA_COUNT > 0`):
 - One option per detected server, up to 3 — `AskUserQuestion` accepts at most 4 options total, and we reserve the 4th slot for `none`. If more than 3 figma servers are detected, keep the first 3 and append a single-sentence note in the question text: "Showing first 3 of N detected — others are still usable; edit `.claude/mobile-spine.config.yaml` after scaffolding."
-- Each option label: `mcp__<server-name>__*`. Description: "detected via `claude mcp list`".
-- **Recommended preference**: if `figma-desktop` is among the detected names, mark it `(Recommended)` (it's the official Figma Dev Mode MCP). Otherwise leave none marked — first-detected order is just whatever `claude mcp list` emitted, not an editorial signal.
-- Final option: `none` — "skip Figma integration for now (UI sections will always be deferred)".
+- Each per-server option label: `mcp__<server-name>__* — detected`. The `— detected` suffix is **required** so the user can tell at a glance that this option came from `claude mcp list` (a bare `mcp__<server-name>__*` label with no suffix only appears in the fallback branch — see below). Description: "detected via `claude mcp list`".
+- **Recommended preference**: if `figma-desktop` is among the detected names, append ` (Recommended)` *after* the `— detected` suffix, yielding the full label `mcp__figma-desktop__* — detected (Recommended)`. Otherwise leave none marked — first-detected order is just whatever `claude mcp list` emitted, not an editorial signal.
+- Final option: label `none`, description "skip Figma integration for now (UI sections will always be deferred)". The `— detected` suffix is **not** applied to `none` — only to the per-server options above.
+
+> The `— detected` suffix is a **UI-only disambiguator**. It must NOT be persisted into `.claude/mobile-spine.config.yaml` — see §4-3 below, which strips this suffix (and any trailing ` (Recommended)` marker) before writing `figmaMcpNamespace`.
 
 **Fallback branch** (when `DETECTED_FIGMA_COUNT == 0`):
 - `mcp__figma__*` — generic placeholder (replace after MCP setup via `/mcp`)
@@ -341,7 +343,17 @@ After the file-processing loop, write `.claude/mobile-spine.config.yaml`. The ag
 
 Normalize Q4 and Q5 first:
 
-- `figmaMcpNamespace`: pass through the selected `mcp__<server-name>__*` namespace verbatim (whether detected dynamically or chosen from the hardcoded fallback list). If Q4 was `none`, set to YAML null (`null`, not the string `"none"`).
+- `figmaMcpNamespace`: pass through the selected namespace **after stripping any trailing UI markers**. AskUserQuestion labels can carry up to two markers:
+  - ` (Recommended)` — added when an option is the recommended choice (both dynamic and fallback branches can attach this).
+  - ` — detected` — added in §Q4 4c's dynamic branch on per-server options.
+
+  Strip in this order (outermost first): drop a trailing ` (Recommended)`, then drop a trailing ` — detected`. The persisted value must equal the bare glob `mcp__<server-name>__*` exactly — `pm-agent` reads this field and uses it for `tools` whitelist glob matching, and any leftover marker will fail to match. Concrete cases:
+  - Dynamic non-Recommended (e.g. `mcp__custom-figma__* — detected`) → `mcp__custom-figma__*`
+  - Dynamic Recommended (`mcp__figma-desktop__* — detected (Recommended)`) → strip `(Recommended)` → strip `— detected` → `mcp__figma-desktop__*`
+  - Fallback Recommended (`mcp__figma-desktop__* (Recommended)`) → strip `(Recommended)` → `mcp__figma-desktop__*`
+  - Fallback non-Recommended (`mcp__figma__*`) → no-op → `mcp__figma__*`
+
+  If Q4 was `none`, set to YAML null (`null`, not the string `"none"`).
 - `copyrightHolder`: pass through Q5 verbatim. If Q5 was `n/a`, set to YAML null.
 
 Then write (note the single-quoted heredoc terminator `'EOF'` — prevents shell expansion of any `$` in Q values):
