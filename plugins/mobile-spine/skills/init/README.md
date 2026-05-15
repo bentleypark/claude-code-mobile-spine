@@ -29,9 +29,9 @@ The skill asks 6 questions:
 1. GitHub org / username
 2. App prefix
 3. Base branch (`develop` / `main` / `master` / other)
-4. Figma MCP namespace (default `mcp__figma__*`)
+4. Figma MCP namespace — options are detected from `claude mcp list` (any server whose name contains "figma"). Falls back to `mcp__figma__*` / `mcp__figma-desktop__*` / `none` when no figma MCP is installed.
 5. License copyright holder
-6. Install location (default: `$(pwd)/<app>-spine`)
+6. Install location — the spine must sit alongside `<app>-android` / `<app>-ios` / `<app>-backend` (agents reach them via `../`). The skill detects existing sibling repos and defaults to `<parent>/<app>-spine` when found; otherwise `$(pwd)/<app>-spine`.
 
 Then writes the scaffolded files. Stops there — `git init` and remote setup
 are intentionally left to the user.
