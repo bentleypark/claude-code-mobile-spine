@@ -10,15 +10,18 @@
 # The script auto-detects the APP prefix by globbing <parent>/*-android and
 # stripping the suffix. It exercises:
 #   - Q4 figma MCP detection (B-1 informational, B-1b empty-grep fallback)
-#   - Q6 sibling detection (B-2 positive: cwd inside PARENT;
-#                           B-2b negative: cwd with no <APP>-* siblings)
+#   - Q6 dual-layout sibling detection (B-2 cwd inside PARENT;
+#                                       B-2b cwd /tmp, neither layout matches;
+#                                       B-2c cwd IS PARENT — platforms as children)
 #   - Q6 path normalization for tilde + relative→absolute (B-3)
 #   - Q6 sibling-layout validation at TARGET_PARENT
 #                          (B-4 default install location;
 #                           B-4b wrong install location → warning fires)
 #
-# The bash blocks below duplicate the ones in SKILL.md §Q4 / §Q6. If you
-# change either side, change the other — there is no automated drift check.
+# The bash blocks below mirror the canonical logic in SKILL.md §Q4 / §Q6
+# (some are extracted into helpers like `detect_siblings()` for table-driven
+# testing). If you change either side, change the other — there is no
+# automated drift check.
 
 set -u
 
@@ -90,34 +93,44 @@ EMPTY_COUNT=$(printf '%s' "$EMPTY" | grep -c .)
 check "empty count is 0" "$EMPTY_COUNT" "0"
 echo
 
-# ===== B-2: sibling detection — cwd inside PARENT, siblings present =====
-echo "[B-2] Q6 sibling detection (positive — cwd inside PARENT)"
-b2_result=$(
-  cd "$PARENT/$APP-android" || exit 99
+# Mirrors SKILL.md §Q6's dual-layout sibling detection. Takes the cwd to run
+# in; reads $APP from the outer scope. Echoes the detected count (0..3),
+# preferring cwd-as-parent (platforms-as-children) over cwd-as-neighbor
+# (platforms-via-dirname) when both find platforms.
+detect_siblings() (
+  cd "$1" || exit 99
   CWD_PARENT=$(dirname "$(pwd)")
   [ "$CWD_PARENT" = "/" ] && CWD_PARENT="$(pwd)"
-  SIBLINGS_FOUND=0
+  C=0
   for p in android ios backend; do
-    [ -d "$CWD_PARENT/$APP-$p" ] && SIBLINGS_FOUND=$((SIBLINGS_FOUND+1))
+    [ -d "$(pwd)/$APP-$p" ] && C=$((C+1))
   done
-  echo "$SIBLINGS_FOUND"
+  N=0
+  for p in android ios backend; do
+    [ -d "$CWD_PARENT/$APP-$p" ] && N=$((N+1))
+  done
+  if [ "$C" -gt 0 ]; then
+    echo "$C"
+  elif [ "$N" -gt 0 ]; then
+    echo "$N"
+  else
+    echo "0"
+  fi
 )
-check "3 siblings detected" "$b2_result" "3"
+
+# ===== B-2: sibling detection — cwd inside PARENT (cwd-as-neighbor layout) =====
+echo "[B-2] Q6 sibling detection (cwd inside PARENT, platforms-via-dirname)"
+check "3 siblings detected" "$(detect_siblings "$PARENT/$APP-android")" "3"
 echo
 
-# ===== B-2b: sibling detection — cwd /tmp, no <APP>-* siblings =====
-echo "[B-2b] Q6 sibling detection (negative — cwd /tmp)"
-b2b_result=$(
-  cd /tmp || exit 99
-  CWD_PARENT=$(dirname "$(pwd)")
-  [ "$CWD_PARENT" = "/" ] && CWD_PARENT="$(pwd)"
-  SIBLINGS_FOUND=0
-  for p in android ios backend; do
-    [ -d "$CWD_PARENT/$APP-$p" ] && SIBLINGS_FOUND=$((SIBLINGS_FOUND+1))
-  done
-  echo "$SIBLINGS_FOUND"
-)
-check "0 siblings detected" "$b2b_result" "0"
+# ===== B-2b: sibling detection — cwd /tmp (no <APP>-* anywhere reachable) =====
+echo "[B-2b] Q6 sibling detection (cwd /tmp, neither layout finds platforms)"
+check "0 siblings detected" "$(detect_siblings /tmp)" "0"
+echo
+
+# ===== B-2c: sibling detection — cwd IS PARENT (cwd-as-parent layout) =====
+echo "[B-2c] Q6 sibling detection (cwd IS PARENT, platforms-as-children)"
+check "3 siblings detected" "$(detect_siblings "$PARENT")" "3"
 echo
 
 # ===== B-3: path normalization matrix =====

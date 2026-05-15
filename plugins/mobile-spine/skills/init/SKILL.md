@@ -142,19 +142,41 @@ CWD_PARENT=$(dirname "$(pwd)")
 # dirname return "/" and would propose /<app>-spine. Fall back to $(pwd).
 [ "$CWD_PARENT" = "/" ] && CWD_PARENT="$(pwd)"
 
-SIBLINGS_FOUND=0
+# Check two layouts:
+#   (a) cwd IS the future spine's parent dir → platforms are CHILDREN of $(pwd)
+#       (natural pattern: "I'm in my projects folder, let me run init")
+#   (b) cwd is a workspace dir INSIDE the parent → platforms are siblings of
+#       cwd, reachable via dirname (canonical SETUP.md layout: running from
+#       an existing spine workspace)
+# Prefer (a) when both find platforms — more common, and matches the user's
+# mental model when they cd into the project root.
+SIBLINGS_AS_CHILDREN=0
 for p in android ios backend; do
-  if [ -d "$CWD_PARENT/$APP-$p" ]; then
-    SIBLINGS_FOUND=$((SIBLINGS_FOUND+1))
-  fi
+  [ -d "$(pwd)/$APP-$p" ] && SIBLINGS_AS_CHILDREN=$((SIBLINGS_AS_CHILDREN+1))
 done
 
+SIBLINGS_AS_NEIGHBORS=0
+for p in android ios backend; do
+  [ -d "$CWD_PARENT/$APP-$p" ] && SIBLINGS_AS_NEIGHBORS=$((SIBLINGS_AS_NEIGHBORS+1))
+done
+
+if [ "$SIBLINGS_AS_CHILDREN" -gt 0 ]; then
+  PLATFORM_PARENT="$(pwd)"
+  SIBLINGS_FOUND=$SIBLINGS_AS_CHILDREN
+elif [ "$SIBLINGS_AS_NEIGHBORS" -gt 0 ]; then
+  PLATFORM_PARENT="$CWD_PARENT"
+  SIBLINGS_FOUND=$SIBLINGS_AS_NEIGHBORS
+else
+  # No siblings found in either layout; PLATFORM_PARENT is unused in this branch.
+  SIBLINGS_FOUND=0
+fi
+
 if [ "$SIBLINGS_FOUND" -gt 0 ]; then
-  DEFAULT_TARGET="$CWD_PARENT/$APP-spine"
-  echo "Detected $SIBLINGS_FOUND existing platform repo(s) under $CWD_PARENT/ — defaulting spine to sit alongside them."
+  DEFAULT_TARGET="$PLATFORM_PARENT/$APP-spine"
+  echo "Detected $SIBLINGS_FOUND existing platform repo(s) under $PLATFORM_PARENT/ — defaulting spine to sit alongside them."
 else
   DEFAULT_TARGET="$(pwd)/$APP-spine"
-  echo "No sibling platform repos detected under $CWD_PARENT/ — defaulting spine under $(pwd)."
+  echo "No sibling platform repos detected — defaulting spine under $(pwd)."
 fi
 echo "DEFAULT_TARGET=$DEFAULT_TARGET"
 ```
@@ -175,6 +197,8 @@ Then ask the user (plain text, not `AskUserQuestion`):
 >
 > Default: `<DEFAULT_TARGET>`
 > Hit enter to accept, or paste an absolute path.
+
+**If the user's response is empty or whitespace-only, treat it as accepting `<DEFAULT_TARGET>` — substitute it for `<user-answer>` in the normalize block below and do NOT re-prompt.** (Free-form Q&A in Claude Code doesn't auto-substitute the default when Enter is pressed; the model has to do it explicitly.)
 
 **After the user answers, normalize and validate the sibling layout:**
 
@@ -239,12 +263,12 @@ Build a substitution map for the doc-file inlining:
 Print a summary back to the user (plain text, not AskUserQuestion):
 
 ```
-[mobile-spine:init] Ready to scaffold:
-  Target:    <Q6>
-  GitHub:    <Q1>/<Q2>-android  /  <Q1>/<Q2>-ios  /  <Q1>/<Q2>-backend
-  Branch:    <Q3>
-  Figma MCP: <Q4>
-  License:   <Q5>
+[mobile-spine:init] Ready to scaffold (no GitHub calls — these values just get substituted into docs and saved to .claude/mobile-spine.config.yaml):
+  Target:         <Q6>
+  Platform repos: <Q1>/<Q2>-android  /  <Q1>/<Q2>-ios  /  <Q1>/<Q2>-backend
+  Branch:         <Q3>
+  Figma MCP:      <Q4>
+  License:        <Q5>
 
 Proceed? (yes / no)
 ```
