@@ -88,20 +88,134 @@ questions (base branch, Figma MCP).
   - `other` — type the branch name
 
 ### Q4. Figma MCP namespace (`AskUserQuestion`)
+
+**First, detect installed Figma MCP servers via the CLI.** As of Claude Code v2.x, `claude mcp list` prints one line per configured server in the shape `<name>: <url-or-cmd> - <status>`. The name portion is always followed by `: ` (colon-space), even when the name itself contains colons (e.g. `plugin:supabase:supabase`). Filter for lines containing "figma" (case-insensitive), then strip the `: <url>...` tail to recover the verbatim server name. The namespace is `mcp__<server-name>__*`.
+
+```bash
+DETECTED_FIGMA=$(claude mcp list 2>/dev/null \
+  | grep -i figma \
+  | sed -E 's/: .*$//')
+DETECTED_FIGMA_COUNT=$(printf '%s' "$DETECTED_FIGMA" | grep -c .)
+echo "DETECTED_FIGMA_COUNT=$DETECTED_FIGMA_COUNT"
+# Emit each detected name on its own line, keyed so the executor can
+# parse them as structured output alongside the count above.
+[ "$DETECTED_FIGMA_COUNT" -gt 0 ] && printf '%s\n' "$DETECTED_FIGMA" | sed 's/^/DETECTED_FIGMA_NAME=/'
+```
+
+If the future Claude Code release changes this CLI format, detection degrades silently: `$DETECTED_FIGMA_COUNT` becomes 0 and the fallback option list (below) fires.
+
+**Then build the question options dynamically:**
+
+- If `DETECTED_FIGMA_COUNT > 0`, build options as follows:
+  - One option per detected server (up to 3 — `AskUserQuestion` accepts at most 4 options total, and we reserve the 4th slot for `none`). If more than 3 figma servers are detected, keep the first 3 and append a single-sentence note in the question text: "Showing first 3 of N detected — others are still usable; edit `.claude/mobile-spine.config.yaml` after scaffolding."
+  - Each option label: `mcp__<server-name>__*`. Description: "detected via `claude mcp list`".
+  - **Recommended preference**: if `figma-desktop` is among the detected names, mark it `(Recommended)` (it's the official Figma Dev Mode MCP). Otherwise leave none marked — first-detected order is just whatever `claude mcp list` emitted, not an editorial signal.
+  - Final option: `none` — "skip Figma integration for now (UI sections will always be deferred)".
+- If `DETECTED_FIGMA_COUNT == 0` (no figma servers installed, or `claude mcp list` unavailable), fall back to the hardcoded options:
+  - `mcp__figma__*` — generic placeholder (replace after MCP setup via `/mcp`)
+  - `mcp__figma-desktop__*` — official Figma Dev Mode MCP (selection-based; requires Figma paid plan + Desktop app) **(Recommended)**
+  - `none` — skip Figma integration for now (UI sections will always be deferred)
+
+Question parameters for `AskUserQuestion`:
 - Question: "Which Figma MCP server are you using? (this affects pm-agent's `tools` whitelist)"
 - Header: "Figma MCP"
-- Options:
-  - `mcp__figma__*` — generic placeholder (replace after MCP setup via `/mcp`)
-  - `mcp__figma-desktop__*` — official Figma Dev Mode MCP (selection-based; requires Figma paid plan + Desktop app)
-  - `none` — skip Figma integration for now (UI sections will always be deferred)
+
+**After the user answers, check the pm-agent compatibility window.** The plugin-shipped `pm-agent.md` has a fixed `tools` whitelist of `mcp__figma__*, mcp__figma-desktop__*` (see SETUP.md §3-4). If the selected namespace is neither of those (e.g. a detected custom server), MCP calls from pm-agent will be blocked at runtime. Print a one-line note to the user:
+
+> Note: the selected namespace is outside pm-agent's default tool whitelist. After scaffolding, see SETUP.md §3-4 to override pm-agent at workspace level (create `.claude/agents/pm-agent.md` with your namespace added to `tools`).
+
+Skip the note when the selection is `mcp__figma__*`, `mcp__figma-desktop__*`, or `none`.
 
 ### Q5. License copyright holder (free text)
 > Who is the copyright holder for the LICENSE file? (your name, org, or "n/a" to leave the placeholder.)
 
 ### Q6. Install location (free text, default suggested)
+
+The spine must be a **sibling** of the platform repos (`<app>-android`, `<app>-ios`, `<app>-backend`). Agents reach them via relative paths like `../<app>-android/` from the spine's cwd — if the spine is not in the same parent directory, every agent run will fail to find the repos (or need `/add-dir` each time).
+
+**Detect existing sibling repos to pick a smart default:**
+
+```bash
+APP="<Q2>"
+CWD_PARENT=$(dirname "$(pwd)")
+# Guard against filesystem-root edge case ($(pwd) == "/") which makes
+# dirname return "/" and would propose /<app>-spine. Fall back to $(pwd).
+[ "$CWD_PARENT" = "/" ] && CWD_PARENT="$(pwd)"
+
+SIBLINGS_FOUND=0
+for p in android ios backend; do
+  if [ -d "$CWD_PARENT/$APP-$p" ]; then
+    SIBLINGS_FOUND=$((SIBLINGS_FOUND+1))
+  fi
+done
+
+if [ "$SIBLINGS_FOUND" -gt 0 ]; then
+  DEFAULT_TARGET="$CWD_PARENT/$APP-spine"
+  echo "Detected $SIBLINGS_FOUND existing platform repo(s) under $CWD_PARENT/ — defaulting spine to sit alongside them."
+else
+  DEFAULT_TARGET="$(pwd)/$APP-spine"
+  echo "No sibling platform repos detected under $CWD_PARENT/ — defaulting spine under $(pwd)."
+fi
+echo "DEFAULT_TARGET=$DEFAULT_TARGET"
+```
+
+Then ask the user (plain text, not `AskUserQuestion`):
+
 > Where should the new spine be created?
-> Default: `$(pwd)/<app>-spine` (replace `<app>` with your Q2 answer).
-> Hit enter to accept the default, or paste an absolute path.
+>
+> **Important:** the spine must live in the **same parent directory** as your platform repos, so agents can reach them via `../<app>-android/` etc. Target layout:
+>
+> ```
+> <parent>/
+>   ├── <app>-spine/      ← this scaffold
+>   ├── <app>-android/
+>   ├── <app>-ios/
+>   └── <app>-backend/
+> ```
+>
+> Default: `<DEFAULT_TARGET>`
+> Hit enter to accept, or paste an absolute path.
+
+**After the user answers, normalize and validate the sibling layout:**
+
+```bash
+# Normalize the user input so `dirname` works on relative paths or
+# tilde-prefixed paths. Avoid `realpath` here — macOS ships BSD realpath
+# which (a) lacks GNU's `-m` flag and (b) errors on non-existent paths
+# (the common case for Q6 since the target dir is about to be created).
+# Plain shell handles the two cases we care about: tilde expansion and
+# relative-to-absolute conversion.
+RAW_TARGET="<user-answer-or-DEFAULT_TARGET>"
+# Tilde expansion for bare "~" or "~/..." only. Skips "~user" (POSIX shell
+# can't reliably expand other-user homes, and AskUserQuestion users almost
+# always paste either their own ~ or an absolute path anyway).
+case "$RAW_TARGET" in
+  "~"|"~/"*) RAW_TARGET="${HOME}${RAW_TARGET#\~}" ;;
+esac
+# Make the path absolute (prefix with $(pwd) when relative).
+case "$RAW_TARGET" in
+  /*) TARGET="$RAW_TARGET" ;;
+  *)  TARGET="$(pwd)/$RAW_TARGET" ;;
+esac
+
+TARGET_PARENT=$(dirname "$TARGET")
+[ "$TARGET_PARENT" = "/" ] && TARGET_PARENT="$TARGET"
+
+SIBLINGS_AT_TARGET=0
+for p in android ios backend; do
+  if [ -d "$TARGET_PARENT/$APP-$p" ]; then
+    SIBLINGS_AT_TARGET=$((SIBLINGS_AT_TARGET+1))
+  fi
+done
+echo "TARGET=$TARGET"
+echo "SIBLINGS_AT_TARGET=$SIBLINGS_AT_TARGET (out of 3) at $TARGET_PARENT/"
+```
+
+If `SIBLINGS_AT_TARGET` is `0`, warn the user once (plain text):
+
+> **Warning:** none of `<app>-android` / `<app>-ios` / `<app>-backend` exist under `<TARGET_PARENT>/`. The spine will still be created, but you must clone the platform repos there before any agent run can succeed (see SETUP.md §3-2 for a `setup.sh` snippet that clones all three). Continue? (yes / no)
+
+If the user declines, re-ask Q6.
 
 ## Step 3 — Confirm and substitute
 
@@ -190,7 +304,7 @@ After the file-processing loop, write `.claude/mobile-spine.config.yaml`. The ag
 
 Normalize Q4 and Q5 first:
 
-- `figmaMcpNamespace`: pass through `mcp__figma__*` / `mcp__figma-desktop__*` verbatim. If Q4 was `none`, set to YAML null (`null`, not the string `"none"`).
+- `figmaMcpNamespace`: pass through the selected `mcp__<server-name>__*` namespace verbatim (whether detected dynamically or chosen from the hardcoded fallback list). If Q4 was `none`, set to YAML null (`null`, not the string `"none"`).
 - `copyrightHolder`: pass through Q5 verbatim. If Q5 was `n/a`, set to YAML null.
 
 Then write (note the single-quoted heredoc terminator `'EOF'` — prevents shell expansion of any `$` in Q values):
@@ -244,9 +358,9 @@ Next steps:
   1. cd <TARGET>
   2. git init   # (optional — version control)
   3. Make sure these sibling repos exist:
-       <PARENT>/<Q2>-android
-       <PARENT>/<Q2>-ios
-       <PARENT>/<Q2>-backend
+       <TARGET_PARENT>/<Q2>-android
+       <TARGET_PARENT>/<Q2>-ios
+       <TARGET_PARENT>/<Q2>-backend
      (clone manually, or copy the setup.sh starter snippet from SETUP.md §3-2)
   4. cd <TARGET> && claude
   5. Inside the session, run /mcp to confirm the Figma MCP namespace if you set one.
