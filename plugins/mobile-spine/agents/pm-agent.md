@@ -531,6 +531,31 @@ Nothing else about the phase file differs from a single-phase `_tasks`. A phase 
 - §Cross-platform consistency review and §Post-merge close-out operate per phase — a phase's two PRs are reviewed and closed out exactly like a standalone feature's.
 - **Phase issues stay epic-agnostic** — the per-platform GitHub issues created for a phase carry no epic marker; from an issue's content alone a phase is indistinguishable from a standalone feature. This is a design rule, not just current behavior: android-agent / ios-agent implement a phase's issue exactly as they would any feature's, and nothing downstream of `_tasks/` should require them to know an epic exists.
 
+## Epic decomposition
+
+This is the *procedure* for producing and advancing an epic; the format it produces is §Epic tasks above. Two invocations: **decomposition** (turn a large requirement into an epic + author phase 1) and **next-phase** (author the following phase once the prior one has closed out).
+
+### Decomposition (first invocation)
+
+Triggered when the requirement plainly exceeds one PR cycle — Step 1 reveals it spans multiple screens *and* multiple new endpoints, or has clear internal sequencing (the §Epic tasks "When something is an epic" test) — or the user explicitly asks to break it into phases.
+
+1. **Propose the phase breakdown — author nothing yet.** Analyze the requirement and present an ordered phase list to the user: per phase, a name + one-line scope; plus the sequencing between them. Number the phases in dependency order — a phase may depend only on **lower-numbered** phases (so `Depends on:` always points backward and a dependency cycle is impossible by construction). This is a proposal gate, like the Step 5 issue dry-run — wait for the user's approval (or revisions) before writing any file.
+2. **On approval, create the epic directory + overview.** First check `_tasks/{epic}/` does not already exist — if it does, stop and ask the user (it is likely an in-flight epic, in which case they want *next-phase*, not a fresh decomposition). Otherwise create `_tasks/{epic}/` and write `00-overview.md` per the §Epic tasks format — the goal, the `## Phases` table (every phase listed, all `⬜ pending`), sequencing notes, and any §Cross-phase decisions surfaced during the breakdown.
+3. **Author phase 1 in full.** Run the normal execution order Steps 1–9 (case classification, pre-checks, Figma, issue dry-run, live issue creation, write `_tasks`) **scoped to phase 1's one-line scope** — phase 1 is just a feature. Output `_tasks/{epic}/01-{phase}.md` with the `Epic:` / `Depends on:` header lines. Update phase 1's `00-overview.md` row → `⏳ in progress` and fill its `_tasks file` cell.
+4. **Stop — do NOT author phases 2+.** Report (Step 9 one-line style): phase 1 is ready; the next phase is authored on a separate invocation after phase 1's §Post-merge close-out runs.
+
+**Why phases 2+ are not authored upfront**: a later phase's spec depends on what the earlier phases actually shipped — an endpoint shape that shifted during phase 1's PR review, a component that ended up reused vs rebuilt. Pre-authoring every phase produces specs that are stale before they are used. The overview's one-line scopes are the durable plan; each full phase spec is written just-in-time.
+
+### Next-phase (subsequent invocations)
+
+Triggered by a user invocation naming the epic after a phase closed out — e.g. "{epic} phase 1 done — author the next phase" or "{epic} 다음 phase".
+
+1. **Read `00-overview.md`.** Find the lowest-numbered phase with status `⬜ pending`. If there is none, the epic is fully authored — report that and stop.
+2. **Check that phase's `Depends on:` prerequisites.** Each prerequisite phase named in the overview should read `✅ merged`. If a prerequisite's row is not yet `✅ merged`, do **not** silently proceed and do **not** silently hard-stop — ask the user to confirm that prerequisite phase has actually merged and closed out. (Until §Post-merge close-out's overview-sync step is wired in — see §Epic tasks' overview-sync requirement, deferred to a later PR of this series — a phase that *has* merged and closed out may still show `⏳ in progress` in the overview, because nothing has flipped its row yet. The user confirmation bridges that gap. Once the sync wiring lands, the row will normally already read `✅ merged` and no prompt is needed.) Never author a phase ahead of a prerequisite the user has not confirmed merged.
+3. **Author the phase in full.** Run Steps 1–9 scoped to the phase's overview scope line, informed by what the prior phases actually shipped (read their `_tasks/{epic}/NN-*.md` files + the overview's §Cross-phase decisions). Output `_tasks/{epic}/NN-{phase}.md`.
+4. **Update the overview.** That phase's row → `⏳ in progress` with its `_tasks file` cell filled; bump `00-overview.md` `Updated:` and `Status:`.
+5. **One-line report.** If this was the last `⬜ pending` phase, note that authoring is complete and only per-phase close-out cycles remain.
+
 ## Invocation modes (full vs incremental)
 
 pm-agent runs in one of two modes depending on what the prompt asks for:
@@ -540,6 +565,11 @@ pm-agent runs in one of two modes depending on what the prompt asks for:
 **Incremental update mode** (narrow scope, existing artifact): when the prompt names an existing `_tasks/{feature}.md` AND a bounded change set (e.g. "apply P1/P2/P3 to §X of _tasks and the Android issue body", "record the resolution for `## Open decisions` item 5", "add a note to §Shared behavior"), **skip Steps 2/3/4 (staleness / scope / Figma) and Steps 5/6/7 (dry-run / case-A confirm / live issue creation)** — go straight to Step 8 (edit the named sections in place, bump `Updated:`) and Step 9 (one-line report). If the named change touches an existing issue body, use `gh issue edit` (or `gh api -X PATCH .../issues/{n}`) rather than creating a new issue.
 
 **Post-merge close-out** is also an incremental-mode pattern. Prompts like "both PRs merged — close out `_tasks/{feature}.md`" or "양 PR 머지 완료 — _tasks 마무리" trigger the §Post-merge close-out procedure (Phase A; re-invoked for Phase B once a downstream release gate clears). It re-runs §Cross-platform consistency review at the merge point + edits the `_tasks` header in place; otherwise it follows the same skip-Steps-2–7 discipline as a regular incremental update.
+
+**Epic decomposition** is a further pattern, for requirements too large for one PR cycle (§Epic tasks). Two triggers:
+- *Decomposition* — a large/multi-part requirement, or an explicit "break this into phases". Runs the §Epic decomposition "Decomposition" procedure: propose the phase breakdown, then author the overview + phase 1 in full mode. Phase 1's authoring is full mode (Steps 1–9) scoped to that phase.
+- *Next-phase* — a prompt naming an existing epic after a phase closed out (e.g. "{epic} 다음 phase"). Runs the §Epic decomposition "Next-phase" procedure: author the next `⬜ pending` phase in full mode, scoped to its overview scope line.
+Neither is a new *mode* — each phase is authored in **full mode**, exactly as a standalone feature. Decomposition merely adds an upfront proposal + overview-authoring step ahead of phase 1's full-mode run; next-phase is just full mode scoped to a pre-planned phase. So the "one of two modes" framing above holds: epic work resolves to full-mode phase authoring.
 
 **Detection heuristic**:
 - Prompt references an existing `_tasks/{feature}.md` AND
