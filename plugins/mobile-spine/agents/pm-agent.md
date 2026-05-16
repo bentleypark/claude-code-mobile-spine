@@ -504,7 +504,7 @@ The overview's `## Phases` status column is the epic's progress tracker. Status 
 - `⏳ in progress` — phase `_tasks` file authored; covers everything from "authored, no issues yet" through "both platform PRs merged, close-out not yet run". Deliberately coarse — it is the single bucket for any not-yet-fully-closed phase, and the procedure must not branch on sub-states of it.
 - `✅ merged {YYYY-MM-DD}` — both platform PRs merged **and** the phase's §Post-merge close-out has run. This value is set **by** the close-out procedure, not before.
 
-**Overview-sync requirement**: the `## Phases` column must be kept current as phases progress — when a phase's §Post-merge close-out runs, it must also update the matching `00-overview.md` row to `✅ merged {date}` and bump the overview's own `Updated:` / `Status:`. (The flat-file `_tasks/{feature}.md` has no parent to sync; this step is epic-specific.) This format section *defines* that requirement; wiring the step into the §Post-merge close-out procedure itself is part of the epic-decomposition rollout and lands in a later PR of this series — until then §Post-merge close-out describes only the flat-file case.
+**Overview-sync requirement**: the `## Phases` column must be kept current as phases progress — when a phase's §Post-merge close-out runs, it must also update the matching `00-overview.md` row to `✅ merged {date}` and bump the overview's own `Updated:` / `Status:`. (The flat-file `_tasks/{feature}.md` has no parent to sync; this step is epic-specific.) This format section *defines* that requirement; the close-out procedure that *performs* it is §Post-merge close-out's "Epic phase close-out — also sync the overview" subsection.
 
 > `00-overview.md` has no `Case:` line — case classification is per-phase (phases of one epic may differ in case), so it lives in each phase file's header, not the overview.
 
@@ -551,7 +551,7 @@ Triggered when the requirement plainly exceeds one PR cycle — Step 1 reveals i
 Triggered by a user invocation naming the epic after a phase closed out — e.g. "{epic} phase 1 done — author the next phase" or "{epic} 다음 phase".
 
 1. **Read `00-overview.md`.** Find the lowest-numbered phase with status `⬜ pending`. If there is none, the epic is fully authored — report that and stop.
-2. **Check that phase's `Depends on:` prerequisites.** Each prerequisite phase named in the overview should read `✅ merged`. If a prerequisite's row is not yet `✅ merged`, do **not** silently proceed and do **not** silently hard-stop — ask the user to confirm that prerequisite phase has actually merged and closed out. (Until §Post-merge close-out's overview-sync step is wired in — see §Epic tasks' overview-sync requirement, deferred to a later PR of this series — a phase that *has* merged and closed out may still show `⏳ in progress` in the overview, because nothing has flipped its row yet. The user confirmation bridges that gap. Once the sync wiring lands, the row will normally already read `✅ merged` and no prompt is needed.) Never author a phase ahead of a prerequisite the user has not confirmed merged.
+2. **Check that phase's `Depends on:` prerequisites.** Each prerequisite phase named in the overview should read `✅ merged`. A prerequisite that has fully closed out reads `✅ merged` — §Post-merge close-out's "Epic phase close-out" subsection flips the row. If a prerequisite's row is still `⏳ in progress`, its close-out has not run yet: do **not** silently proceed and do **not** silently hard-stop — ask the user to confirm that prerequisite phase's code has actually merged (a phase whose PRs merged but whose close-out is still pending is fine to build the next phase on; one whose PRs are genuinely unmerged is not). Never author a phase ahead of a prerequisite the user has not confirmed merged.
 3. **Author the phase in full.** Run Steps 1–9 scoped to the phase's overview scope line, informed by what the prior phases actually shipped (read their `_tasks/{epic}/NN-*.md` files + the overview's §Cross-phase decisions). Output `_tasks/{epic}/NN-{phase}.md`.
 4. **Update the overview.** That phase's row → `⏳ in progress` with its `_tasks file` cell filled; bump `00-overview.md` `Updated:` and `Status:`.
 5. **One-line report.** If this was the last `⬜ pending` phase, note that authoring is complete and only per-phase close-out cycles remain.
@@ -677,7 +677,7 @@ Triggered by an explicit user invocation — typical prompts: "both PRs merged �
 
 ### Phase distinguisher (run first)
 
-Before doing any work, read `_tasks/{feature}.md` `Status:` and decide which phase to run:
+The close-out target is a `_tasks` file — for a single-phase feature `_tasks/{feature}.md`, for an epic phase `_tasks/{epic}/NN-{phase}.md`. Either way, before doing any work read **that file's** `Status:` and decide which phase to run (an epic phase file carries its own `Status:`, same as any `_tasks`):
 
 - `Status:` starts with `In progress` / `Authored` / `Case A deferred` / similar — **or `Status:` is absent** (the line is optional per the `_tasks/{feature}.md` output format above, so most freshly-authored `_tasks` have no `Status:` until close-out adds one) — **and** prompt mentions PRs merged → **Phase A**.
 - `Status:` starts with `PRs merged — ... Pending {gate}` **and** prompt mentions release / finalize / gate cleared → **Phase B**.
@@ -700,6 +700,17 @@ Only when Phase A.5 left a gate pending. Triggered by a second user invocation: 
 1. **`_tasks/{feature}.md` header**: `Status:` → `"Complete — client v{X.Y.Z} released, {YYYY-MM-DD}"` (agent localizes the verb — e.g. "완료" in Korean workspaces if that matches the rest of the file's language). `Updated:` bumped.
 2. **`_context/operations.md` retro line** — add 1–2 lines under the canonical `## Operational discoveries` section (the workspace template ships this heading at `_context/operations.md`; if it's been removed locally, fall back to `## Run-log entries (append below)` which the template also ships). Note concrete operational signals from the rollout: patterns that worked (carryforward of a shared component, an interceptor unification), surprises (caching gotcha, race seen at scale), or follow-up decisions. Keep it factual — no narrative. Do **not** write into `## Week N pilot result …` sections — those are scoped to the week-0/1/2/3 pilot validation phases (SETUP.md §9) and aren't generic per-feature buckets.
 3. **`_tasks/{feature}.md` stays in place as a verification artifact** — same principle as Case A's "deferred — already implemented" output. The file is the long-lived spec-and-completion record for the feature; do not delete or archive.
+
+### Epic phase close-out — also sync the overview
+
+When the closed-out `_tasks` is an **epic phase file** (`_tasks/{epic}/NN-{phase}.md`), Phase A — and Phase B, if a release gate applied — run exactly as above on the phase file. **In addition**, once Phase A completes (both PRs merged + the phase-file header updated), sync the parent overview — this is the overview-sync requirement defined in §Epic tasks:
+
+1. **Update `00-overview.md`** — set this phase's `## Phases` row status to `✅ merged {YYYY-MM-DD}` and bump the overview's `Updated:` and `Status:` (e.g. `Status:` → "phase 3 of 4 in progress" or "all phases merged — epic complete"). `_tasks/{epic}/00-overview.md` is within the `_tasks/` allowed path — no §Safety rule exception needed. **If `00-overview.md` is missing or has no `## Phases` row matching this phase, do NOT invent one** — stop and report to the user that the epic structure is broken (the phase file and its overview have drifted); the rest of close-out has already run on the phase file, so only the overview sync is outstanding.
+2. **Report the epic's next step** — "next phase" means the lowest-numbered `⬜ pending` phase per §Epic decomposition next-phase, which need not be this phase's number + 1 (phases may close out of order):
+   - If the overview still has `⬜ pending` phases → tell the user the next phase can be authored: "[pm-agent] {epic} phase {N} closed out. Re-invoke to author the next pending phase (§Epic decomposition next-phase)."
+   - If no `⬜ pending` phase remains → "[pm-agent] {epic} — all phases merged. Epic complete."
+
+This step runs regardless of whether Phase A.5's release-gate branch applied: even when a phase's own `_tasks` `Status:` stays at `PRs merged — ... Pending {gate}`, its overview row still flips to `✅ merged` once Phase A finishes — the phase's *code* has merged, which is what a dependent later phase needs. (`✅ merged` in the overview tracks "phase done enough to unblock dependents", per §Epic tasks' status vocabulary; the phase file's own `Status:` separately tracks the release-gate state machine.)
 
 ### What this section does NOT do
 
