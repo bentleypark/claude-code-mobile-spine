@@ -446,6 +446,91 @@ Figma: {connection state — "connected" or "not connected — UI sections defer
 ## Checklist update policy
 pm-agent **only authors** `_tasks/{feature}.md`. The `_tasks` header (`Status:`, `Updated:`, API Spec, Issue numbers, Figma state) is pm-agent's responsibility throughout the feature lifecycle — initial authoring (Step 8) and on close-out (§Post-merge close-out Phase A.2 / B.1). The `## Completion checklist` checkboxes are different: ticking them after PR merge is the user's verification record, and **pm-agent never ticks them**.
 
+## Epic tasks (multi-phase features)
+
+Most features are **single-phase** — one `_tasks/{feature}.md`, one issue per platform, one PR cycle per platform. That flat-file format above is unchanged and remains the default.
+
+A requirement too large for a single PR cycle is an **epic**: it decomposes into ordered **phases**, where each phase *is* a normal feature (its own per-platform issues, its own PR cycle, its own §Post-merge close-out). This section defines only the **on-disk format** for an epic — what an epic looks like in `_tasks/`. The *procedure* for producing and advancing one (decomposition, just-in-time next-phase authoring) is a separate concern from this format definition.
+
+### When something is an epic
+
+Treat a requirement as an epic when it plainly exceeds one PR cycle's worth of work — e.g. it spans multiple screens *and* multiple new endpoints, or it has internal sequencing ("first the data model, then the list UI, then composition"). A requirement that fits the ~150-line single `_tasks` budget is **not** an epic — don't over-decompose. When in doubt, it's a single feature.
+
+### Directory layout
+
+A single-phase feature stays a flat file: `_tasks/{feature}.md`. An epic is a **directory**:
+
+```
+_tasks/
+├── login.md                       ← single-phase feature (flat file — unchanged)
+└── {epic}/                        ← epic — a directory
+    ├── 00-overview.md             ← epic spec + ordered phase list + status
+    ├── 01-{phase}.md              ← phase 1 — a normal _tasks file
+    ├── 02-{phase}.md              ← phase 2
+    └── ...
+```
+
+Phase files are numbered `01-`, `02-`, … in execution order. `00-overview.md` is reserved for the epic overview (the `00-` prefix sorts it first).
+
+### `00-overview.md` format
+
+```markdown
+# Epic: {epic name}
+
+Created: {YYYY-MM-DD}
+Updated: {YYYY-MM-DD — bump on every re-run; this line + git diff is the changelog}
+Status: {free-form epic progress, e.g. "phase 2 of 4 in progress" | "all phases merged — epic complete". This is NOT the close-out state machine — the `Status:` field that §Post-merge close-out's Phase distinguisher branches on lives in each phase file, not here.}
+
+## Goal
+{1-3 sentences: the epic-level user value. Not implementation, not per-phase detail.}
+
+## Phases
+| # | Phase | Scope (one line) | Status | _tasks file |
+|---|-------|------------------|--------|-------------|
+| 1 | {name} | {one-line scope} | ✅ merged {YYYY-MM-DD} | 01-{phase}.md |
+| 2 | {name} | {one-line scope} | ⏳ in progress | 02-{phase}.md |
+| 3 | {name} | {one-line scope} | ⬜ pending | (not authored yet) |
+
+## Sequencing notes
+{Dependency / ordering constraints between phases — e.g. "phase 2 depends on phase 1's data model"; "phases 3 and 4 may run in either order after phase 2". Empty if phases are strictly linear.}
+
+## Cross-phase decisions
+{Decisions fixed once at the epic level and referenced by every phase — e.g. "feed item ID is a server-issued string UUID". Keeps a phase file from re-litigating a settled epic-wide choice. Empty if none.}
+```
+
+The overview's `## Phases` status column is the epic's progress tracker. Status values:
+
+- `⬜ pending` — phase `_tasks` file not authored yet.
+- `⏳ in progress` — phase `_tasks` file authored; covers everything from "authored, no issues yet" through "both platform PRs merged, close-out not yet run". Deliberately coarse — it is the single bucket for any not-yet-fully-closed phase, and the procedure must not branch on sub-states of it.
+- `✅ merged {YYYY-MM-DD}` — both platform PRs merged **and** the phase's §Post-merge close-out has run. This value is set **by** the close-out procedure, not before.
+
+**Overview-sync requirement**: the `## Phases` column must be kept current as phases progress — when a phase's §Post-merge close-out runs, it must also update the matching `00-overview.md` row to `✅ merged {date}` and bump the overview's own `Updated:` / `Status:`. (The flat-file `_tasks/{feature}.md` has no parent to sync; this step is epic-specific.) This format section *defines* that requirement; wiring the step into the §Post-merge close-out procedure itself is part of the epic-decomposition rollout and lands in a later PR of this series — until then §Post-merge close-out describes only the flat-file case.
+
+> `00-overview.md` has no `Case:` line — case classification is per-phase (phases of one epic may differ in case), so it lives in each phase file's header, not the overview.
+
+### Phase file format
+
+Each `NN-{phase}.md` is a **normal `_tasks` file** — the exact `§_tasks/{feature}.md output format` above, full ~150-line budget and all — with **two extra header lines** (`Epic:` / `Depends on:`) inserted as the **first two lines of the standard header block**, directly below the `# {phase name}` H1 and immediately above `Case:`:
+
+```markdown
+# {phase name}
+
+Epic: {epic} (phase N of M) — see 00-overview.md
+Depends on: {phase K | none}
+Case: {A | B | C}
+{... the rest is the standard _tasks header + body, unchanged ...}
+```
+
+`Depends on:` references the prerequisite **phase number** (`phase 1`), not its filename — the overview's `## Phases` table is the single number→file mapping, so a phase rename can't dangle a `Depends on:` pointer. The H1 (`# {phase name}`) stays the file's first line, exactly like every other `_tasks` file — the epic-link lines are header metadata, not a pre-title preamble.
+
+Nothing else about the phase file differs from a single-phase `_tasks`. A phase carries its own `Case:`, its own per-platform `Issue:` lines, its own `## Completion checklist`.
+
+### What does not change
+
+- The flat `_tasks/{feature}.md` format and every rule in §_tasks authoring discipline apply unchanged to each phase file.
+- §Cross-platform consistency review and §Post-merge close-out operate per phase — a phase's two PRs are reviewed and closed out exactly like a standalone feature's.
+- **Phase issues stay epic-agnostic** — the per-platform GitHub issues created for a phase carry no epic marker; from an issue's content alone a phase is indistinguishable from a standalone feature. This is a design rule, not just current behavior: android-agent / ios-agent implement a phase's issue exactly as they would any feature's, and nothing downstream of `_tasks/` should require them to know an epic exists.
+
 ## Invocation modes (full vs incremental)
 
 pm-agent runs in one of two modes depending on what the prompt asks for:
