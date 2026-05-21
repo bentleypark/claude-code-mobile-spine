@@ -462,6 +462,35 @@ user request
 > the per-repo CLAUDE.md Figma 5-step approval gates. android may finish while
 > ios is still waiting for an approval step.
 
+### Epic workflow (multi-phase features)
+
+A requirement too large for one PR cycle is an **epic** — it decomposes into
+ordered **phases**, each of which is a normal feature with its own per-platform
+issues, PR cycle, and close-out. An epic lives as a directory `_tasks/{epic}/`
+(`00-overview.md` + numbered `NN-{phase}.md` phase files) instead of a flat
+`_tasks/{feature}.md`. The full format and procedure are in pm-agent.md
+(§Epic tasks / §Epic decomposition).
+
+```
+/feat {large requirement}
+  └─ Item 1b epic check → "Yes, decompose"
+       └─ pm-agent (decomposition)
+            ├─ proposes an ordered phase breakdown → you approve
+            ├─ writes _tasks/{epic}/00-overview.md (all phases, ⬜ pending)
+            └─ authors phase 1 in full → _tasks/{epic}/01-{phase}.md
+                 └─ phase 1 runs the normal feature flow (issues → android ∥ ios → PRs)
+                      └─ pm-agent (close-out, phase 1)
+                           ├─ closes out 01-{phase}.md exactly like a feature
+                           └─ syncs 00-overview.md row → ✅ merged
+                                └─ pm-agent (next-phase) → authors phase 2 → repeat
+```
+
+Phases 2+ are **not** authored upfront — each phase's spec is written
+just-in-time, after the prior phase merges, so it reflects what actually
+shipped. You drive the cadence: invoke `/feat` (or pm-agent directly) for the
+decomposition, then re-invoke pm-agent for each next phase once the prior one
+has closed out.
+
 ---
 
 ## 9. Phased adoption plan

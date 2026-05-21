@@ -13,6 +13,7 @@ Outputs:
 - `_context/api/*.md` — backend API specs (api-agent reads ../myapp-backend/ → writes here)
 - `_context/design/{feature}/` — Figma assets pulled per feature
 - `_tasks/{feature}.md` — the platform-neutral feature spec (pm-agent author; 1:1 with both repos' GitHub issues). Lean by design: ~150 lines, state-once, no per-repo code locations — those live in the GitHub issues, not here. See pm-agent.md §_tasks authoring discipline.
+- `_tasks/{epic}/` — a multi-phase feature (an **epic**) is a directory, not a flat file: `00-overview.md` (phase list + status) plus numbered `NN-{phase}.md` phase files, each a normal `_tasks` spec. See pm-agent.md §Epic tasks / §Epic decomposition.
 - `.claude/mobile-spine.config.yaml` — workspace-specific values (`org` / `app` / `baseBranch` / `figmaMcpNamespace` / `copyrightHolder`). Read by every agent at invocation. **Single source of truth** — if your branch convention or org changes, edit this file (no scattered substitutions across agent files).
 
 Operational base:
@@ -29,7 +30,9 @@ mobile-spine/
 │   ├── operations.md                  # run log (retros, measurements, decisions)
 │   ├── api/{domain}.md                # api-agent output
 │   └── design/{feature}/              # design assets
-├── _tasks/{feature}.md                # pm-agent output
+├── _tasks/
+│   ├── {feature}.md                   # pm-agent output — single-phase feature
+│   └── {epic}/                        # multi-phase feature (epic): 00-overview.md + NN-{phase}.md
 └── .claude/
     ├── commands/
     │   └── feat.md                    # thin stub → /mobile-spine:feat

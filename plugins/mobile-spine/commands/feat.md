@@ -1,12 +1,12 @@
 ---
-description: Kick off _tasks creation for a new feature (4-item interview before invoking pm-agent)
+description: Kick off _tasks creation for a new feature (4-item interview before invoking pm-agent; an epic-sized requirement routes to phased decomposition instead)
 argument-hint: [optional short note — e.g. "push notification settings - alarm domain"]
 allowed-tools: [Read, AskUserQuestion, Agent]
 ---
 
 # /mobile-spine:feat — New feature kickoff interview
 
-Run a 4-item interview, then invoke pm-agent automatically. The main session asks the user the 4 questions in order, collects answers, and constructs the pm-agent prompt.
+Run a 4-item interview, then invoke pm-agent automatically. The main session asks the user the 4 questions in order, collects answers, and constructs the pm-agent prompt. (For a requirement too large for one PR cycle, an early epic check — Item 1b — routes instead to pm-agent's phased decomposition, skipping Items 2–4.)
 
 The workspace's `/feat` is a thin stub that delegates here — both invocations end up running this same command.
 
@@ -31,6 +31,23 @@ Try to extract feature/domain from `$ARGUMENTS`. If unclear, ask in plain text:
 
 > [/feat] What is the feature name and the domain key?
 > Examples: "Email verification - auth" / "Phone verification - auth" / "Push settings - alarm"
+
+### Item 1b: epic check
+
+Before the case interview, assess whether the requirement is too large for a single PR cycle — an **epic** (see pm-agent.md §Epic tasks). Signals: the feature note describes multiple distinct screens *and* multiple new endpoints, names several separable deliverables, or has explicit internal sequencing ("first the data model, then the list UI, then composition").
+
+- If it does **not** look epic-sized → continue to Item 2 (the normal single-feature flow).
+- If it **does** → confirm via `AskUserQuestion`:
+
+  ```
+  Question: "This looks larger than one PR cycle. Handle it as an epic? pm-agent proposes a phased breakdown; each phase is then authored and shipped on its own cycle."
+  Header: "Epic?"
+  Options:
+  - "Yes — decompose into phases" — invoke pm-agent in decomposition mode
+  - "No — single feature" — continue the normal 4-item interview
+  ```
+
+  If **Yes** → **skip Items 2–4** (case classification, spec source, and Figma state are decided per phase when that phase is authored, not upfront) and invoke pm-agent using the §"pm-agent prompt construction — epic decomposition" template below. If **No** → continue to Item 2.
 
 ### Item 2: case auto-detection + user confirmation
 
@@ -118,12 +135,41 @@ Follow pm-agent.md execution order (steps 1~10):
 For case B/C, mark the new-endpoint spec source ({item 3}) on the API Spec line of _tasks (temporary annotation). For case C, add the warning banner; for case B, mark the new endpoints distinctly.
 ```
 
+## pm-agent prompt construction — epic decomposition
+
+When the epic check (Item 1b) routed to decomposition, invoke pm-agent (Agent tool, subagent_type: pm-agent) with this template instead of the 4-item one above:
+
+```
+## Target
+- Epic: {item 1 — feature name}
+- Domain hint: {extracted from item 1}
+
+## Procedure
+This is an epic. Run §Epic decomposition → "Decomposition (first invocation)" in pm-agent.md:
+propose an ordered phase breakdown for the user's approval, then on approval
+create _tasks/{epic}/ + 00-overview.md and author phase 1 in full mode.
+Do NOT author phases 2+ — those are authored just-in-time on later
+next-phase invocations.
+
+## Notes
+- Case classification, spec source, and Figma state are decided per phase
+  when that phase is authored — not upfront. Phase 1's full-mode run does
+  its own Step 1–9 pre-checks.
+- Follow §_tasks authoring discipline for every phase file and 00-overview.md.
+```
+
 ## Pre-invocation note
 
 Just before invoking pm-agent, print a one-liner:
 
 ```
 [/feat] Invoking pm-agent — case {X}, domain {domain}, Figma {state}
+```
+
+For the epic-decomposition path, instead print:
+
+```
+[/feat] Invoking pm-agent — epic decomposition for {epic}
 ```
 
 ## Interview abort conditions
