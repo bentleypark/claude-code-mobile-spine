@@ -4,7 +4,9 @@
       "Edit(../myapp-android/**)",
       "Write(../myapp-android/**)",
       "Edit(../myapp-ios/**)",
-      "Write(../myapp-ios/**)"
+      "Write(../myapp-ios/**)",
+      "Bash(cd ../myapp-android *)",
+      "Bash(cd ../myapp-ios *)"
     ],
     "deny": [
       "Edit(../myapp-backend/**)",

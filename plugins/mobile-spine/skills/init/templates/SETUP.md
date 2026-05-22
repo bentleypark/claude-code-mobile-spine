@@ -209,7 +209,9 @@ chmod +x setup.sh
       "Edit(../myapp-android/**)",
       "Write(../myapp-android/**)",
       "Edit(../myapp-ios/**)",
-      "Write(../myapp-ios/**)"
+      "Write(../myapp-ios/**)",
+      "Bash(cd ../myapp-android *)",
+      "Bash(cd ../myapp-ios *)"
     ],
     "deny": [
       "Edit(../myapp-backend/**)",
@@ -224,6 +226,8 @@ chmod +x setup.sh
 > repos to deny would block their dedicated agent from working at all. Mutual
 > isolation between android and ios is reinforced via the `tools` field on each
 > agent (next section).
+
+> **Bash `cd` allow scope (android / ios)**: the two new `Bash(cd ../myapp-android *)` / `Bash(cd ../myapp-ios *)` entries above pre-allow `cd ../myapp-android && ...` / `cd ../myapp-ios && ...` for the genuinely-cd-requiring cases (builds, tests, anything whose tool doesn't have a `--cwd`-style flag) without a permission prompt each time. This **does** widen the auto-allow surface for **any** bash command run after `cd` into those repos — including `curl`, `git push`, process spawning, etc. (`Edit` / `Write` only cover filesystem mutations; Bash carries the wider surface.) The trade is accepted because the spine workspace already needs to drive builds, tests, and git mutations in android/ios, and tightening this would push every build back behind a per-command prompt. If your threat model treats sibling-repo shell execution as elevated, drop the two `Bash(cd ...)` allows and accept the prompts on builds. Backend has **no** `cd` allow — keep all backend access through `git -C ../myapp-backend log …` (read-only). For **read-only** cross-repo bash (git log/diff/status, gh pr/issue view, ls/grep), prefer path-flag forms like `git -C ../myapp-ios log` or `gh pr view --repo myorg/myapp-ios <n>` over `cd` — the harness auto-allows those read-only forms for free; write subcommands prompt regardless of form.
 
 ### 3-4. Isolation via the agent `tools` field (plugin-shipped — reference only)
 
