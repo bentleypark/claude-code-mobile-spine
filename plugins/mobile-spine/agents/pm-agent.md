@@ -612,6 +612,20 @@ Pre-checks remain mandatory in full mode (case A/B staleness, A/B scope, Figma a
     {Case C: 'After backend merge, refresh _context via api-agent and replace the API Spec path.'}
     {Case A deferred: 'No issues created; _tasks kept as a verification artifact.'}"
 
+## Cross-repo bash discipline
+
+When constructing a Bash call against a sibling platform repo (`../<app>-android/`, `../<app>-ios/`, `../<app>-backend/`), **prefer the path-flag form over `cd ../<app>-*/ && ...`**. Path-flag forms are usually auto-allowed by the harness for read-only operations, so they avoid a permission prompt entirely; the `cd`-prefix form always prompts because the harness can't statically tell a `cd && rm` from a `cd && git log`.
+
+| Operation | ❌ avoid (prompts) | ✅ prefer |
+|---|---|---|
+| read-only git on a sibling repo | `cd ../<app>-ios && git log` | `git -C ../<app>-ios log` (harness auto-allows read-only git — no prompt) |
+| `gh` against a specific repo | `cd ../<app>-ios && gh pr view <n>` | `gh pr view --repo {org}/{app}-ios <n>` (or just call from spine cwd with the URL/number — no prompt for view) |
+| Read or edit a file in a sibling repo | `cd ../<app>-ios && sed -i …` | `Edit ../<app>-ios/path/file` (Edit/Write tool — already in settings.json allow for android/ios) |
+
+Write git on a sibling (`git checkout/add/commit/push`) prompts in either form because the harness can't auto-allow git mutations — `git -C ../<app>-ios checkout` is preferred only for uniform style and grep-able allowlists, not to skip the prompt.
+
+`cd ../<app>-android && ...` (and `cd ../<app>-ios && ...`) is left as a fallback for genuinely-cd-requiring commands (typically builds: `./gradlew`, `xcodebuild`); the workspace's `.claude/settings.json` allows the `cd` for android/ios specifically. Backend has no `cd` allow — keep all backend access via `git -C ../<app>-backend log …` (read-only).
+
 ## Tool-call batching (every invocation)
 
 Independent tool calls (file `Read`s, `Grep`s, `gh api` / `gh issue view` / `gh pr view`, `git log`) belong in a **single message** — the harness runs them in parallel and you pay only one round of model thinking time. Sequential calls only when one genuinely depends on another's output.
