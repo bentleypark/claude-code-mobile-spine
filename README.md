@@ -64,6 +64,8 @@ and stops — `git init` and the GitHub remote stay your call.
 See [plugins/mobile-spine/skills/init/README.md](./plugins/mobile-spine/skills/init/README.md)
 for details.
 
+To pull later agent/command improvements, run `/plugin marketplace update claude-code-mobile-spine` and restart Claude Code — agent definitions are registered at session start, so a restart is required for changes to take effect.
+
 After scaffolding, run the week-0 verification (the scaffolded workspace's
 `SETUP.md` §9 → Week 0) before relying on the isolation model.
 
