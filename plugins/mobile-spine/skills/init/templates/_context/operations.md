@@ -169,8 +169,9 @@ new/edited agent may give a "not found" or stale-behavior result.
 - **`settings.json` changes** or a **workspace override** at
   `.claude/agents/<name>.md`: `/reload-plugins` does not cover these — **restart
   Claude Code**.
-Plan session restarts (or at least a `/reload-plugins`) at every phase
-transition (week 0 → 1, week 1 → 2, etc.).
+At every phase transition (week 0 → 1, week 1 → 2, etc.), run `/reload-plugins`
+so the newly-relevant agents load — restart only if you also changed
+`settings.json` that cycle.
 
 ---
 
