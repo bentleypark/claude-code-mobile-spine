@@ -2,7 +2,8 @@
 name: ios-agent
 description: >
   Implements iOS features in ../myapp-ios/ based on _tasks/ specs and
-  _context/api/. Translates Figma designs into SwiftUI components.
+  _context/api/. Translates the feature's design source (Figma or an HTML mockup)
+  into SwiftUI components.
   ../myapp-ios/CLAUDE.md takes precedence over spine rules.
   Never modifies ../myapp-android/, ../myapp-backend/, or mobile-spine/.
 tools: [Read, Write, Edit, Bash, Grep, Glob]
@@ -54,11 +55,16 @@ Additional rules:
 - Branch name: `feat/{issue}-{feature}-ios`
 - Use the issue number from `_tasks/{feature}.md`
 
-## Figma → SwiftUI mapping
-- Figma color tokens → `Color` extension / Asset Catalog
-- Figma typography → `Font` extension
-- Figma component → `View` struct 1:1
-- Assets → `Assets.xcassets`
+## Design source → SwiftUI mapping
+
+The `_tasks` header's `Design source:` line says whether UI came from Figma or an HTML mockup; the `## Screens` / `## Components` source refs point at Figma node IDs or HTML `file#selector`. Map either to SwiftUI:
+
+- color tokens (Figma tokens / CSS `--color-*` custom properties) → `Color` extension / Asset Catalog
+- typography (Figma type styles / CSS `--font-*`, `font-size`/`weight`/`line-height`) → `Font` extension
+- a component (Figma component / repeated HTML block or web component) → `View` struct 1:1
+- assets → `Assets.xcassets`
+
+For an HTML mockup, the parity target is the rendered mockup, not pixel-matching the markup — translate layout/spacing/state intent, not literal CSS. Do **not** read the mockup from inside this repo; it lives in mobile-spine `_context/design/{feature}/` (read-only). The per-repo Figma 5-step procedure above (if defined) applies equally with an HTML mockup as the design reference — step 1 lists from the mockup instead of a Figma node.
 
 ## API integration
 - Read `_context/api/{domain}.md` before implementation.

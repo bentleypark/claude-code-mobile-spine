@@ -55,9 +55,9 @@ claude
 
 ```
 /feat
-  └─ 4-item interview (feature + domain / case auto-detect / spec source / Figma state)
+  └─ 4-item interview (feature + domain / case auto-detect / spec source / design source)
       └─ pm-agent
-           ├─ pre-checks (staleness / scope / Figma)
+           ├─ pre-checks (staleness / scope / design source)
            ├─ GitHub issue dry-run × 2 (android + ios) → user approval → live create
            └─ writes _tasks/{feature}.md
                 └─ android-agent ∥ ios-agent (parallel)

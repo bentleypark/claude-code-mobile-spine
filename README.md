@@ -15,17 +15,17 @@ Install the bundled Claude Code plugin and run `/mobile-spine:init`: a
 
 - **Four subagents** with explicit responsibilities and allowed paths:
   - `api-agent` — reads the backend, writes `_context/api/{domain}.md`
-  - `pm-agent` — reads Figma + API specs, writes `_tasks/{feature}.md`, opens GitHub issues per platform
+  - `pm-agent` — reads a design source (Figma MCP or an HTML mockup) + API specs, writes `_tasks/{feature}.md`, opens GitHub issues per platform
   - `android-agent` — implements in `../myapp-android/`
   - `ios-agent` — implements in `../myapp-ios/`
 - **Isolation model** — `settings.json` `deny` should block writes to the backend repo (verify in week 0 — see SETUP.md §9 Item 3); each agent's `description` + per-agent allowed-paths in the prompt body keep android↔ios mutually isolated (prompt-level — relies on the model's cooperation, not a hard technical block).
-- **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / Figma state) → pm-agent prompt auto-built.
+- **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) → pm-agent prompt auto-built. Spec source accepts "none — derive from design" for a design-only (no requirements doc) feature.
 - **4-case classification** for every new feature:
   - A: existing endpoint / B: new endpoint in existing domain / C: new domain / D: backend not built
 - **Three pre-checks** before pm-agent writes anything:
   - 1) staleness (`_context/api/{domain}.md` Updated vs backend HEAD)
   - 2) scope vs context comparison (catches deprecated endpoints still in spec)
-  - 3) Figma availability (no inventing UI sections without MCP)
+  - 3) design source availability — figma / html / none (no inventing UI sections when none)
 - **Two-phase agent invocation** — phase 1 implements + reports diff; phase 2 (only after explicit user approval) commits and opens a Draft PR. No surprise pushes.
 - **Self-contained GitHub issue bodies** — the platform sessions never need to know mobile-spine exists.
 - **Phased adoption guide** — week-0 verification (subagent reaches `../` paths, `develop` branch present, `/remove-dir` unsupported, settings deny works, Figma MCP namespace identified), week-1 api-agent only, week-2 + pm-agent, week-3 + android/ios.
@@ -63,6 +63,8 @@ and stops — `git init` and the GitHub remote stay your call.
 
 See [plugins/mobile-spine/skills/init/README.md](./plugins/mobile-spine/skills/init/README.md)
 for details.
+
+To pull later agent/command improvements, run `/plugin marketplace update claude-code-mobile-spine` and restart Claude Code — agent definitions are registered at session start, so a restart is required for changes to take effect.
 
 After scaffolding, run the week-0 verification (the scaffolded workspace's
 `SETUP.md` §9 → Week 0) before relying on the isolation model.

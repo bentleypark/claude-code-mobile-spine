@@ -64,7 +64,7 @@ After migration, `/feat` still works (via the new stub → plugin), and the four
 3. [Initial setup](#3-initial-setup)
 4. [Agent definition files](#4-agent-definition-files)
 5. [CLAUDE.md — routing rules](#5-claudemd--routing-rules)
-6. [Figma integration](#6-figma-integration)
+6. [Design sources (Figma / HTML)](#6-design-sources-figma--html)
 7. [Backend API integration](#7-backend-api-integration)
 8. [End-to-end workflow](#8-end-to-end-workflow)
 9. [Phased adoption plan](#9-phased-adoption-plan)
@@ -96,7 +96,7 @@ for prior art on the broader pattern.
 | Agent | Role | Working location |
 |---|---|---|
 | api-agent | Read backend code, produce client-facing API specs | `../myapp-backend/` (read-only) |
-| pm-agent | Author `_tasks/` from Figma + API specs; create GitHub issues; final review | `mobile-spine/_tasks/` |
+| pm-agent | Author `_tasks/` from a design source (Figma / HTML) + API specs; create GitHub issues; final review | `mobile-spine/_tasks/` |
 | android-agent | Kotlin/Compose implementation; honors `myapp-android/CLAUDE.md` | `../myapp-android/` |
 | ios-agent | Swift/SwiftUI implementation; honors `myapp-ios/CLAUDE.md` | `../myapp-ios/` |
 
@@ -265,7 +265,7 @@ claude
 The four agent definitions live in the **mobile-spine plugin**, under `plugins/mobile-spine/agents/`. They are served globally by the plugin — your workspace does **not** carry copies. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 - `api-agent.md` — backend → spec extraction
-- `pm-agent.md` — Figma + spec → _tasks; case classification; pre-checks; issue dry-run
+- `pm-agent.md` — design source (Figma / HTML) + spec → _tasks; case classification; pre-checks; issue dry-run
 - `android-agent.md` — Android implementation (two-phase: implement + diff / commit + Draft PR)
 - `ios-agent.md` — iOS implementation (two-phase, with optional per-repo Figma 5-step procedure)
 
@@ -302,7 +302,7 @@ ios-agent:     ../myapp-ios/CLAUDE.md takes precedence
 
 ## Feature flow
 1. api-agent: analyze ../myapp-backend/ → write _context/api/{domain}.md (Updated)
-2. pm-agent: stale check → Figma + spec → GitHub issue → _tasks/{feature}.md
+2. pm-agent: stale check → design source (Figma / HTML) + spec → GitHub issue → _tasks/{feature}.md
 3. android-agent · ios-agent: parallel implementation → user approval → commit → user approval → PR → done
 4. [user] After each PR merges, tick the _tasks checkbox manually. pm-agent only does the cross-platform final review.
 
@@ -321,7 +321,10 @@ new session.
 
 ---
 
-## 6. Figma integration
+## 6. Design sources (Figma / HTML)
+
+pm-agent fills UI sections from a **design source** — Figma MCP (§6-1/6-2), an
+HTML mockup (§6-3), or none. The branch is chosen at the `/feat` Item 4 interview.
 
 ### 6-1. Figma MCP connected (recommended)
 
@@ -359,17 +362,33 @@ Manage links and exports under `_context/design/figma-links.md`:
   - typography.json
 ```
 
-### 6-3. Future direction — markdown design specs
+### 6-3. HTML mockups as a design source (supported)
+
+pm-agent's pre-check 3 is a **design-source branch**: `figma` / `html` / `none`.
+Besides Figma MCP, you can hand pm-agent an **HTML/CSS mockup** and it inventories
+it directly (no MCP) — each file ≈ a screen, CSS `:root` custom properties ≈
+design tokens, repeated DOM blocks ≈ components. Pick "HTML mockup" at the
+`/feat` Item 4 interview and give a path; recommended location is
+`_context/design/{feature}/` (any non-platform-repo path works).
+
+This also enables a **design-only** flow (the "no requirements doc" path): with
+no API spec at all, the HTML or Figma design *is* the requirement — pm-agent
+derives UI-implied endpoints into the `_tasks` `## Open decisions` (flagged for
+backend confirmation) rather than inventing a finalized spec. Pick "none —
+derive from design" at the spec-source step. Side benefit: workspaces with
+`figmaMcpNamespace: null` can still spec UI via HTML.
+
+> No headless rendering — the HTML/CSS source is the spec, treated as static
+> markup + stylesheets (no JS execution, no screenshots).
+
+### 6-4. Future direction — markdown design specs (DESIGN.md)
 
 A growing pattern (mostly English-speaking ecosystem, 2025–2026) treats
 markdown as the source of truth that AI agents consume, with Figma kept for
-visual exploration. This template **does not yet support** an md-spec input
-path in pm-agent — Figma MCP is the only first-class design source today.
-
-If md-based design specs become your team's primary input, the natural
-extension is to add a parallel branch in pm-agent's pre-check 3 ("design
-source: Figma MCP / `_context/design/{feature}/DESIGN.md` / none"). The
-underlying specs are still alpha, so verify before adopting:
+visual exploration. The HTML branch above is the first non-Figma design source;
+a `DESIGN.md` md-spec would slot into pre-check 3 the same way
+(`_context/design/{feature}/DESIGN.md`) but is **not yet wired**. The underlying
+specs are still alpha, so verify before adopting:
 
 - [Google Labs `DESIGN.md` (Apache-2.0, v0.1.0, 2026-04)](https://github.com/google-labs-code/design.md) — 9-section schema with YAML token frontmatter
 - [W3C Design Tokens Format Module (stable, 2025-10)](https://www.designtokens.org/tr/drafts/format/) — `$value` / `$type` token shape
@@ -430,12 +449,15 @@ Order:
 3. android-agent · ios-agent implement in parallel (off `develop`)
 ```
 
-### Feature request (no Figma yet)
+### Feature request (no design source yet)
 
 ```
 Implement the login screen.
 api-agent first, pm-agent next (with issues), android · ios in parallel.
 ```
+
+> If you have an HTML mockup but no API spec, the design-only path applies:
+> pick "HTML mockup" + "none — derive from design" in `/feat` (see §6-3).
 
 ### Internal sequence
 

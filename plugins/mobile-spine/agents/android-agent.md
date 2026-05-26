@@ -2,7 +2,8 @@
 name: android-agent
 description: >
   Implements Android features in ../myapp-android/ based on _tasks/ specs and
-  _context/api/. Translates Figma designs into Jetpack Compose components.
+  _context/api/. Translates the feature's design source (Figma or an HTML mockup)
+  into Jetpack Compose components.
   Never modifies ../myapp-ios/, ../myapp-backend/, or mobile-spine/.
 tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
@@ -44,11 +45,16 @@ Allowed paths: `../myapp-android/`, `_tasks/` (read), `_context/` (read).
 - Branch name: `feat/{issue}-{feature}-android` (or follow your repo's actual convention)
 - Use the issue number from `_tasks/{feature}.md`
 
-## Figma → Compose mapping
-- Figma color tokens → `MaterialTheme.colorScheme`
-- Figma typography → `MaterialTheme.typography`
-- Figma component → `@Composable` 1:1
-- Assets (icons / images) → `res/drawable/` or Coil
+## Design source → Compose mapping
+
+The `_tasks` header's `Design source:` line says whether UI came from Figma or an HTML mockup; the `## Screens` / `## Components` source refs point at Figma node IDs or HTML `file#selector`. Map either to Compose:
+
+- color tokens (Figma tokens / CSS `--color-*` custom properties) → `MaterialTheme.colorScheme`
+- typography (Figma type styles / CSS `--font-*`, `font-size`/`weight`/`line-height`) → `MaterialTheme.typography`
+- a component (Figma component / repeated HTML block or web component) → `@Composable` 1:1
+- assets (icons / images) → `res/drawable/` or Coil
+
+For an HTML mockup, the parity target is the rendered mockup, not pixel-matching the markup — translate layout/spacing/state intent, not literal CSS. Do **not** read the mockup from inside this repo; it lives in mobile-spine `_context/design/{feature}/` (read-only).
 
 ## API integration
 - Read `_context/api/{domain}.md` before implementation.

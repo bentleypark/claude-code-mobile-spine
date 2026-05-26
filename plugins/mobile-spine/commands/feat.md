@@ -47,7 +47,7 @@ Before the case interview, assess whether the requirement is too large for a sin
   - "No — single feature" — continue the normal 4-item interview
   ```
 
-  If **Yes** → **skip Items 2–4** (case classification, spec source, and Figma state are decided per phase when that phase is authored, not upfront) and invoke pm-agent using the §"pm-agent prompt construction — epic decomposition" template below. If **No** → continue to Item 2.
+  If **Yes** → **skip Items 2–4** (case classification, spec source, and design source are decided per phase when that phase is authored, not upfront) and invoke pm-agent using the §"pm-agent prompt construction — epic decomposition" template below. If **No** → continue to Item 2.
 
 ### Item 2: case auto-detection + user confirmation
 
@@ -78,25 +78,36 @@ If "Specify a different case" is chosen, ask the user which of A/B/C/D applies.
 For case B/C only:
 
 > [/feat] Where is the spec source for the new endpoint(s) / domain?
-> One of: backend PR URL / OpenAPI file path / external doc URL.
+> One of: backend PR URL / OpenAPI file path / external doc URL / **"none — derive from design"**.
 
 Case A: spec is `_context/api/{domain}.md` (skip).
 Case D: pm-agent will defer (skip).
 
-### Item 4: Figma node state
+> **Design-only (no API spec)**: if the user answers "none — derive from design"
+> (case C with a design source but no spec doc — the "no requirements doc" path),
+> pm-agent runs design-driven analysis: it inventories the design source as Phase 0
+> and derives UI-implied endpoints into `## Open decisions` flagged for backend
+> confirmation, rather than inventing a finalized spec. Pass this through to pm-agent
+> in the Context block (see the prompt template). Requires a real design source in
+> Item 4 — "no API spec **and** no design" leaves nothing to analyze, so steer the
+> user to case D instead.
+
+### Item 4: design source
 
 Ask via `AskUserQuestion`:
 
 ```
-Question: "What is the Figma input state?"
-Header: "Figma state"
+Question: "What is the design source for UI sections?"
+Header: "Design source"
 Options:
-- "Desktop multi-select ready" — pm-agent uses selection-based MCP (recommended)
-- "Provide nodeIds" — supply nodeId list in the next ping
-- "No Figma" — UI sections will be deferred per pre-check policy
+- "Figma — desktop multi-select" — pm-agent uses selection-based MCP (recommended)
+- "Figma — provide nodeIds" — supply nodeId list in the next ping
+- "HTML mockup" — supply a path to .html / .css files in the next ping
+- "No design" — UI sections will be deferred per pre-check policy
 ```
 
-If "Provide nodeIds" is chosen, collect the comma-separated list ("1:1075, 1:1208, ...").
+- If "Figma — provide nodeIds" is chosen, collect the comma-separated list ("1:1075, 1:1208, ...").
+- If "HTML mockup" is chosen, collect the path. Recommend `_context/design/{feature}/`; any non-platform-repo path is accepted (pm-agent reads it directly — no MCP needed). It must **not** live inside `../myapp-android/` / `../myapp-ios/` / `../myapp-backend/` — ask the user to copy it into `_context/design/{feature}/` if it does.
 
 ## pm-agent prompt construction
 
@@ -109,30 +120,30 @@ Plug the 4 answers into the template below and invoke pm-agent (Agent tool, suba
 - Pre-classified: case {item 2}
 
 ## Context
-{case B/C: spec source — item 3 (URL / path / doc)}
+{case B/C: spec source — item 3 (URL / path / doc), OR "none — derive from design" (design-only path: derive UI-implied endpoints into ## Open decisions, do not fabricate a finalized spec — see pm-agent.md §Step 4 "Design-driven requirements")}
 {case A: spec — `_context/api/{domain}.md` (Updated: {time})}
 {case D: backend not built — pm-agent prints the deferred message and stops}
-{Figma state — item 4: multi-select / nodeIds / not connected}
+{Design source — item 4: figma multi-select / figma nodeIds {list} / html {path} / none}
 
 ## Procedure
 Follow pm-agent.md execution order (steps 1~10):
-- Pre-checks 1·2·3 → Phase 0 multi-select inventory → extraction / gap / conflict identification → single ping if needed → write _tasks → issue dry-run
+- Pre-checks 1·2·3 → Phase 0 design-source inventory (figma multi-node OR html files) → extraction / gap / conflict identification → single ping if needed → write _tasks → issue dry-run
 
 ## Policy reminders
 - Follow §_tasks authoring discipline in pm-agent.md: `_tasks` is a spec, not a log — length budget ~150 lines, state each fact once (reference by §), platform-neutral by default with Android/iOS-specific notes confined to `## Android` / `## iOS` (never interleaved), and **no platform-repo file paths / line numbers / class names** anywhere in `_tasks`. On a re-run, edit sections in place and bump `Updated:` — never append `📌 update` / `갱신` blocks.
 - The `## Candidate assets` section in _tasks lists ~5 category keywords only (no codebase grep, no code locations). Platform agents' inventory results stay in their PR body / issue — they don't flow back into `_tasks`.
 - For case A, after the dry-run, confirm whether the feature is already implemented on both platforms (skip issue creation + add Status header on yes)
-- Use the standard header (Case / Status / Android Issue / iOS Issue / Created / Updated / API Spec / Figma)
-- When Figma is not connected or assets look incomplete: do not invent — leave a single placeholder line
+- Use the standard header (Case / Status / Android Issue / iOS Issue / Created / Updated / API Spec / Design source)
+- Design source `none` or incomplete assets: do not invent UI sections — leave a single placeholder line. `html`/`figma`: fill UI sections from the inventory.
 
 ## Outputs
 - _tasks/{feature}.md saved
 - Case classification + pre-check results
-- Figma inventory summary (when multi-select)
+- Design-source inventory summary (figma multi-select or html files)
 - Identified gaps / conflicts
 - GitHub issue dry-run bodies × 2 (android / ios) — not yet created
 
-For case B/C, mark the new-endpoint spec source ({item 3}) on the API Spec line of _tasks (temporary annotation). For case C, add the warning banner; for case B, mark the new endpoints distinctly.
+For case B/C, mark the new-endpoint spec source ({item 3}) on the API Spec line of _tasks (temporary annotation). For case C, add the warning banner; for case B, mark the new endpoints distinctly. For the design-only path, the API Spec line reads `temporary — derived from design`.
 ```
 
 ## pm-agent prompt construction — epic decomposition
@@ -152,7 +163,7 @@ Do NOT author phases 2+ — those are authored just-in-time on later
 next-phase invocations.
 
 ## Notes
-- Case classification, spec source, and Figma state are decided per phase
+- Case classification, spec source, and design source are decided per phase
   when that phase is authored — not upfront. Phase 1's full-mode run does
   its own Step 1–9 pre-checks.
 - Follow §_tasks authoring discipline for every phase file and 00-overview.md.
@@ -163,7 +174,7 @@ next-phase invocations.
 Just before invoking pm-agent, print a one-liner:
 
 ```
-[/feat] Invoking pm-agent — case {X}, domain {domain}, Figma {state}
+[/feat] Invoking pm-agent — case {X}, domain {domain}, design source {figma multi-select | figma nodeIds | html {path} | none}
 ```
 
 For the epic-decomposition path, instead print:
@@ -207,17 +218,36 @@ A case-C run (new domain), Figma connected. (`<` lines are your input; the promp
   One of: backend PR URL / OpenAPI file path / external doc URL.
 < https://github.com/myorg/myapp-backend/pull/NNN
 
-[/feat] What is the Figma input state?
-  [ Desktop multi-select ready / Provide nodeIds / No Figma ]
-< Desktop multi-select ready
+[/feat] What is the design source for UI sections?
+  [ Figma — desktop multi-select / Figma — provide nodeIds / HTML mockup / No design ]
+< Figma — desktop multi-select
 
-[/feat] Invoking pm-agent — case C, domain alarm, Figma multi-select
+[/feat] Invoking pm-agent — case C, domain alarm, design source figma multi-select
 ```
 
 pm-agent then:
 - Runs case-C pre-checks: no `_context/api/alarm.md` → uses the supplied PR as a temporary spec source, adds the case-C warning banner to `_tasks`
 - Phase 0: inventories the multi-selected Figma nodes
-- Writes `_tasks/push-notification-settings.md` with the standard header (Case: C / API Spec: temporary — `https://github.com/myorg/myapp-backend/pull/NNN`, replace with `_context/api/alarm.md` after backend merge / Figma: multi-select) and a `## Candidate assets` keyword list
+- Writes `_tasks/push-notification-settings.md` with the standard header (Case: C / API Spec: temporary — `https://github.com/myorg/myapp-backend/pull/NNN`, replace with `_context/api/alarm.md` after backend merge / Design source: figma — connected) and a `## Candidate assets` keyword list
 - Prints two GitHub issue dry-run bodies (android / ios) — not yet created
 
 You approve issue creation, then hand `_tasks/push-notification-settings.md` to android-agent and ios-agent: each runs phase 1 (inventory via the `## Candidate assets` keywords → implement → diff report), then phase 2 after your explicit approval (commit + Draft PR).
+
+### Variant — HTML mockup, no API spec yet (design-only)
+
+Same flow, two answers differ — the "no requirements doc" path:
+
+```
+[/feat] Where is the spec source for the new endpoint(s) / domain?
+  One of: backend PR URL / OpenAPI file path / external doc URL / "none — derive from design".
+< none — derive from design
+
+[/feat] What is the design source for UI sections?
+  [ Figma — desktop multi-select / Figma — provide nodeIds / HTML mockup / No design ]
+< HTML mockup
+  → path? < _context/design/push-notification-settings/
+
+[/feat] Invoking pm-agent — case C, domain alarm, design source html _context/design/push-notification-settings/
+```
+
+pm-agent then inventories the HTML/CSS files as Phase 0 (each file ≈ a screen, `:root` custom properties ≈ tokens), derives the UI-implied endpoints into `## Open decisions` flagged `derived from design — needs backend confirmation`, and writes the header with `API Spec: temporary — derived from design` / `Design source: html — _context/design/push-notification-settings/`. After a backend spec is agreed, re-invoke to replace the derived endpoints.

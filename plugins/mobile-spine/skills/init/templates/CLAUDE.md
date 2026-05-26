@@ -11,7 +11,7 @@ code — only markdown specs, policies, and run notes.
 
 Outputs:
 - `_context/api/*.md` — backend API specs (api-agent reads ../myapp-backend/ → writes here)
-- `_context/design/{feature}/` — Figma assets pulled per feature
+- `_context/design/{feature}/` — design assets per feature: Figma exports and/or HTML/CSS mockups (the recommended home for a `html` design source)
 - `_tasks/{feature}.md` — the platform-neutral feature spec (pm-agent author; 1:1 with both repos' GitHub issues). Lean by design: ~150 lines, state-once, no per-repo code locations — those live in the GitHub issues, not here. See pm-agent.md §_tasks authoring discipline.
 - `_tasks/{epic}/` — a multi-phase feature (an **epic**) is a directory, not a flat file: `00-overview.md` (phase list + status) plus numbered `NN-{phase}.md` phase files, each a normal `_tasks` spec. See pm-agent.md §Epic tasks / §Epic decomposition.
 - `.claude/mobile-spine.config.yaml` — workspace-specific values (`org` / `app` / `baseBranch` / `figmaMcpNamespace` / `copyrightHolder`). Read by every agent at invocation. **Single source of truth** — if your branch convention or org changes, edit this file (no scattered substitutions across agent files).
@@ -47,7 +47,7 @@ The four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) ar
 | When | Subagent | Output / scope | Definition |
 |---|---|---|---|
 | Backend changed → spec refresh | `api-agent` | Writes `_context/api/*.md`. Read-only on myapp-backend | plugin: `plugins/mobile-spine/agents/api-agent.md` |
-| New feature _tasks | `pm-agent` | Writes `_tasks/*.md`. Reads `_context/api/` + Figma MCP. Does not grep platform code | plugin: `plugins/mobile-spine/agents/pm-agent.md` |
+| New feature _tasks | `pm-agent` | Writes `_tasks/*.md`. Reads `_context/api/` + a design source (Figma MCP or HTML mockup). Does not grep platform code | plugin: `plugins/mobile-spine/agents/pm-agent.md` |
 | Android implementation | `android-agent` | Modifies myapp-android only. Compose conventions | plugin: `plugins/mobile-spine/agents/android-agent.md` |
 | iOS implementation | `ios-agent` | Modifies myapp-ios only. SwiftUI; honors `myapp-ios/CLAUDE.md` over spine rules | plugin: `plugins/mobile-spine/agents/ios-agent.md` |
 
@@ -72,7 +72,7 @@ Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-
 | `/mobile-spine:feat [note]` | Interview for a new feature → invoke pm-agent | plugin: `plugins/mobile-spine/commands/feat.md` |
 | `/mobile-spine:init` | (Re-)scaffold a workspace | plugin: `plugins/mobile-spine/commands/init.md` + `skills/init/SKILL.md` |
 
-`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / Figma state) and constructs the pm-agent prompt. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no-Figma → no invention) fire automatically on each call.
+`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
 
 ## Auto-loaded channels
 
