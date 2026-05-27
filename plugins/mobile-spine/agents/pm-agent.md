@@ -421,6 +421,7 @@ Created: {YYYY-MM-DD}
 Updated: {YYYY-MM-DD — bump on every re-run; this line + git diff is the changelog}
 API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | case C: temporary — {external source} | design-only: temporary — derived from design}
 Design source: {figma — connected | html — {mockup path} | none — UI sections deferred}
+Release: {pending — not yet released | per platform once shipped: "android {app vX.Y.Z} / ios {app vX.Y.Z} ({YYYY-MM-DD})". Authored as `pending`; set at §Post-merge close-out Phase B. Android and iOS may ship at different app versions — record each. "n/a" for a platform that isn't shipping this feature (already had it / platform-specific feature).}
 
 {For case C, a ONE-LINE banner near the top — keep it to one line, do not grow it:}
 > ⚠️ Case C — temporary spec. After backend merge, refresh _context with api-agent and revalidate the API Spec path / endpoint table here.
@@ -486,7 +487,7 @@ Design source: {figma — connected | html — {mockup path} | none — UI secti
 ```
 
 ## Checklist update policy
-pm-agent **only authors** `_tasks/{feature}.md`. The `_tasks` header (`Status:`, `Updated:`, API Spec, Issue numbers, `Design source:`) is pm-agent's responsibility throughout the feature lifecycle — initial authoring (Step 8) and on close-out (§Post-merge close-out Phase A.2 / B.1). The `## Completion checklist` checkboxes are different: ticking them after PR merge is the user's verification record, and **pm-agent never ticks them**.
+pm-agent **only authors** `_tasks/{feature}.md`. The `_tasks` header (`Status:`, `Updated:`, API Spec, Issue numbers, `Design source:`, `Release:`) is pm-agent's responsibility throughout the feature lifecycle — initial authoring (Step 8, `Release: pending`) and on close-out (§Post-merge close-out Phase A.2 / B.2 sets the released version). The `## Completion checklist` checkboxes are different: ticking them after PR merge is the user's verification record, and **pm-agent never ticks them**.
 
 ## Epic tasks (multi-phase features)
 
@@ -746,6 +747,7 @@ The close-out target is a `_tasks` file — for a single-phase feature `_tasks/{
 2. **Update `_tasks/{feature}.md` header in place** (per §_tasks authoring discipline — never append `📌 update` blocks):
    - `Status:` → `"PRs merged — Android #{N1} (PR #{M1}) / iOS #{N2} (PR #{M2}), {YYYY-MM-DD}.{ release-gate note if applicable, e.g. ' Pending ops deploy + DB migration before client release.'}"`
    - `Updated:` bumped to today.
+   - `Release:` stays `pending` — merging the PRs is not releasing the client. The released version is recorded only in Phase B, when the app is actually shipped.
 3. **Verify the two GitHub issues are closed.** `gh issue view {N1} --json state -q .state` + `gh issue view {N2} --json state -q .state` in parallel (§Tool-call batching) — each returns plain `OPEN` or `CLOSED` for direct comparison. PR `Closes #N` typically auto-closes the issue on merge; if either is still `OPEN`, **report to the user** with the issue number and ask whether to close. pm-agent does **NOT** close issues directly — closing is a user decision (some teams keep issues open for QA or rollback windows).
 4. **pm-agent does NOT tick the §Completion checklist boxes** — restating the existing §Checklist update policy at close-out time. The checklist is the user's verification record; ticking is their explicit sign-off.
 5. **Release-gate branching**: if the feature carries a downstream release gate (e.g. `_tasks` header or feature spec references a backend ops deploy, a DB migration, an App Store / Play Store rollout), keep `_tasks` in the `"PRs merged — ... Pending {gate}"` state and stop here. Re-invoke pm-agent for Phase B once the gate clears.
@@ -754,9 +756,15 @@ The close-out target is a `_tasks` file — for a single-phase feature `_tasks/{
 
 Only when Phase A.5 left a gate pending. Triggered by a second user invocation: "{feature} released — finalize `_tasks/{feature}.md`" or equivalent.
 
-1. **`_tasks/{feature}.md` header**: `Status:` → `"Complete — client v{X.Y.Z} released, {YYYY-MM-DD}"` (agent localizes the verb — e.g. "완료" in Korean workspaces if that matches the rest of the file's language). `Updated:` bumped.
-2. **`_context/operations.md` retro line** — add 1–2 lines under the canonical `## Operational discoveries` section (the workspace template ships this heading at `_context/operations.md`; if it's been removed locally, fall back to `## Run-log entries (append below)` which the template also ships). Note concrete operational signals from the rollout: patterns that worked (carryforward of a shared component, an interceptor unification), surprises (caching gotcha, race seen at scale), or follow-up decisions. Keep it factual — no narrative. Do **not** write into `## Week N pilot result …` sections — those are scoped to the week-0/1/2/3 pilot validation phases (SETUP.md §9) and aren't generic per-feature buckets.
-3. **`_tasks/{feature}.md` stays in place as a verification artifact** — same principle as Case A's "deferred — already implemented" output. The file is the long-lived spec-and-completion record for the feature; do not delete or archive.
+1. **Capture the released client version(s) — per platform.** pm-agent cannot read App Store / Play Store versions, so it must get them from the invocation. If the prompt already names the shipped version(s) (e.g. "released in android 4.12.0 / ios 4.9.0"), use them. Otherwise ask once:
+   "[pm-agent] What client version shipped this feature, per platform? (e.g. `android 4.12.0 / ios 4.9.0`; `n/a` for a platform that isn't shipping it.)"
+   Android and iOS frequently ship at **different** app versions — capture each separately; don't collapse them into one number.
+2. **`_tasks/{feature}.md` header**:
+   - `Release:` → `"android {app vX.Y.Z} / ios {app vX.Y.Z} ({YYYY-MM-DD})"` from step 1 (`n/a` for any platform not shipping this feature — one that already had it, or a platform-specific feature).
+   - `Status:` → `"Complete — released {YYYY-MM-DD}"` (agent localizes the verb — e.g. "완료" in Korean workspaces if that matches the rest of the file's language). The version detail lives in `Release:`, not duplicated here (state-once, §_tasks authoring discipline).
+   - `Updated:` bumped.
+3. **`_context/operations.md` retro line** — add 1–2 lines under the canonical `## Operational discoveries` section (the workspace template ships this heading at `_context/operations.md`; if it's been removed locally, fall back to `## Run-log entries (append below)` which the template also ships). Note concrete operational signals from the rollout: patterns that worked (carryforward of a shared component, an interceptor unification), surprises (caching gotcha, race seen at scale), or follow-up decisions. Keep it factual — no narrative. Do **not** write into `## Week N pilot result …` sections — those are scoped to the week-0/1/2/3 pilot validation phases (SETUP.md §9) and aren't generic per-feature buckets.
+4. **`_tasks/{feature}.md` stays in place as a verification artifact** — same principle as Case A's "deferred — already implemented" output. The file is the long-lived spec-and-completion record for the feature; do not delete or archive.
 
 ### Epic phase close-out — also sync the overview
 

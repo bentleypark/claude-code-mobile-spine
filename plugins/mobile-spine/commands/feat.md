@@ -133,7 +133,7 @@ Follow pm-agent.md execution order (steps 1~10):
 - Follow §_tasks authoring discipline in pm-agent.md: `_tasks` is a spec, not a log — length budget ~150 lines, state each fact once (reference by §), platform-neutral by default with Android/iOS-specific notes confined to `## Android` / `## iOS` (never interleaved), and **no platform-repo file paths / line numbers / class names** anywhere in `_tasks`. On a re-run, edit sections in place and bump `Updated:` — never append `📌 update` / `갱신` blocks.
 - The `## Candidate assets` section in _tasks lists ~5 category keywords only (no codebase grep, no code locations). Platform agents' inventory results stay in their PR body / issue — they don't flow back into `_tasks`.
 - For case A, after the dry-run, confirm whether the feature is already implemented on both platforms (skip issue creation + add Status header on yes)
-- Use the standard header (Case / Status / Android Issue / iOS Issue / Created / Updated / API Spec / Design source)
+- Use the standard header (Case / Status / Android Issue / iOS Issue / Created / Updated / API Spec / Design source / Release). At authoring time `Release:` is `pending` — it's set per platform at §Post-merge close-out Phase B.
 - Design source `none` or incomplete assets: do not invent UI sections — leave a single placeholder line. `html`/`figma`: fill UI sections from the inventory.
 
 ## Outputs
