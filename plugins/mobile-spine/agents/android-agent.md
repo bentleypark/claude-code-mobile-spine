@@ -61,9 +61,29 @@ For an HTML mockup, the parity target is the rendered mockup, not pixel-matching
 - Use the Retrofit interface example from api-agent as the starting point.
 - `../myapp-backend/` is read-only — no modifications.
 
+## Reverse-extraction mode (parity brief)
+
+A second invocation mode, distinct from the implement flow below. Triggered when the prompt asks for a **parity brief** / **reverse-extraction** of a feature this repo **already ships** — used by the cross-platform parity flow (one platform built it, the other hasn't; see pm-agent.md §Cross-platform parity, driven by `/feat`). This already-built platform is the de-facto spec; the goal is a platform-neutral, spec-term description so the *other* platform can reach parity.
+
+**Read-only.** No branch, no `git add` / `commit`, no PR — you are reading your own repo and reporting, not changing it. (If the prompt asks you to *implement* a parity feature instead, that's the normal two-phase flow below, working from the `_tasks` pm-agent authored — not this mode.)
+
+Procedure:
+1. Locate the feature in `../myapp-android/` (the prompt names it; grep for the screens / flows it describes).
+2. If a spine-style PR already shipped it with a spec-term `## Behavior` section, **reuse that** as the brief's spine — don't re-derive what's already written.
+3. Otherwise read the implementation and write the brief in the **same spec terms** a PR `## Behavior` section uses — by role, never by symbol. Cover:
+   - **Screens** — each screen / route the feature presents (by name / role).
+   - **Components** — reusable UI pieces by role (e.g. "6-digit OTP input with auto-advance").
+   - **Behavior** — the actual logic: entry point, gate / handler location *by role*, validation rules, navigation, error-display policy, the flow.
+   - **Endpoints actually called** — path · method · request / response shape *as this app calls them*. These are real, confirmed-working — not speculative. Flag any non-standard response handling.
+   - **States handled / not handled** — empty / loading / error / success; call out states the reference itself does **not** cover (these become parity gaps the other platform should decide on, not assumptions to copy).
+4. **Do not emit Android file paths / class names / line numbers.** The brief is a platform-neutral spec for the *other* platform and feeds pm-agent, which must keep `_tasks` free of per-repo code locations (pm-agent.md §_tasks authoring discipline). Describe everything by role.
+5. Report the brief **inline in your message** — it is transient. `/feat` passes it into the pm-agent prompt; it is not written to any file.
+
+> This mode never writes anywhere — `_context/` and `_tasks/` are read-only here too. pm-agent owns `_tasks`; the brief lives only in your returned message.
+
 ## Execution order
 
-This agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR.
+In the default **implement** flow, this agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR. (§Reverse-extraction mode above is the separate, read-only alternative.)
 
 ### Phase 1 (implement + review report)
 1. Read `_tasks/{feature}.md` (note the issue number).

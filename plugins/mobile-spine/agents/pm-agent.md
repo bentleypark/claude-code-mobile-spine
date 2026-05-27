@@ -140,6 +140,8 @@ UI sections (`## Screens`, `## Components`) are filled from a **design source**.
 
 Both real sources are concrete UI artifacts, so both legitimately fill UI sections. The hard rule is only against the **`none`** case: never invent UI sections from a text description alone.
 
+> **Parity exception**: in the cross-platform parity flow (§Cross-platform parity), UI sections are filled from the inline **parity brief** (the reference platform's as-built screens / components), not from this table — the brief is the design source. The `none` invent-nothing rule still holds for anything the brief doesn't cover.
+
 ### Figma branch — multi-node inventory first (no single-node analysis)
 
 > The official Dev Mode MCP is selection-based: it auto-detects the node
@@ -388,11 +390,13 @@ iOS Issue: myorg/myapp-ios#{N2}
   - Color/typography tokens → CSS `:root` custom properties (`--color-*`, `--font-*`)
   - (no screenshot equivalent — the HTML/CSS source is the spec)
 - **none**: neither available → defer UI sections per Step 4 (Pre-check 3).
+- **parity brief**: a platform-neutral brief the reference platform agent extracts from its as-built feature (§Cross-platform parity). Supplied inline in the prompt; fills UI sections like a Figma / HTML inventory would.
 
 ### API spec
 - Case A/B: `_context/api/{domain}.md` (written by api-agent, must not be stale)
 - Case C: external spec (user-supplied, temporary). Replace with _context after backend merge.
 - **none (design-only)**: no spec source — derive UI-implied endpoints into `## Open decisions`, flagged for backend confirmation (§Step 4 "Design-driven requirements").
+- **parity**: the reference platform's "endpoints actually called" (from the brief) — confirmed-working, so in-scope, but marked `temporary — from {reference} as-built` until `_context/api` covers them (§Cross-platform parity).
 
 ### Per-repo CLAUDE.md
 - When authoring the `## iOS` section, honor any per-repo Figma procedure defined in `../myapp-ios/CLAUDE.md`.
@@ -414,13 +418,13 @@ iOS Issue: myorg/myapp-ios#{N2}
 # {feature}
 
 Case: {A | B | C}
-Status: {optional — for case A deferred: "deferred — already implemented on both platforms (confirmed {YYYY-MM-DD}). No issues created; _tasks kept as a verification artifact."}
-Android Issue: {myorg/myapp-android#{N1} | not created (case A deferred)}
-iOS Issue: {myorg/myapp-ios#{N2} | not created (case A deferred)}
+Status: {optional — for case A deferred: "deferred — already implemented on both platforms (confirmed {YYYY-MM-DD}). No issues created; _tasks kept as a verification artifact." | for parity (§Cross-platform parity): "parity — {reference} shipped ({outside spine | PR #{M}}); building {lagging}."}
+Android Issue: {myorg/myapp-android#{N1} | not created (case A deferred) | reference — already shipped, not re-issued (parity)}
+iOS Issue: {myorg/myapp-ios#{N2} | not created (case A deferred) | reference — already shipped, not re-issued (parity)}
 Created: {YYYY-MM-DD}
 Updated: {YYYY-MM-DD — bump on every re-run; this line + git diff is the changelog}
-API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | case C: temporary — {external source} | design-only: temporary — derived from design}
-Design source: {figma — connected | html — {mockup path} | none — UI sections deferred}
+API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | case C: temporary — {external source} | design-only: temporary — derived from design | parity: temporary — from {reference} as-built; confirm via api-agent (or _context/api/{domain}.md if it already covers them)}
+Design source: {figma — connected | html — {mockup path} | none — UI sections deferred | parity brief — {reference} as-built}
 
 {For case C, a ONE-LINE banner near the top — keep it to one line, do not grow it:}
 > ⚠️ Case C — temporary spec. After backend merge, refresh _context with api-agent and revalidate the API Spec path / endpoint table here.
@@ -598,6 +602,38 @@ Triggered by a user invocation naming the epic after a phase closed out — e.g.
 4. **Update the overview.** That phase's row → `⏳ in progress` with its `_tasks file` cell filled; bump `00-overview.md` `Updated:` and `Status:`.
 5. **One-line report.** If this was the last `⬜ pending` phase, note that authoring is complete and only per-phase close-out cycles remain.
 
+## Cross-platform parity (one platform built, the other not)
+
+A feature already shipped on **one** platform but not the other — often built **outside the spine** (ad-hoc / before adoption), so there's no `_tasks` and maybe no spec-term PR. The already-built platform is the **reference** (the de-facto spec); the goal is to drive the **lagging** platform to parity.
+
+This is **not** case A's "already implemented on both platforms" defer path (§Case A) — that needs *both* done. Here exactly one is done. (If *both* are partially done it isn't parity — treat it as a normal feature or reconcile the two manually.)
+
+### How the reference is analyzed — you do NOT read platform source
+
+pm-agent never reads platform-repo source (§Safety rule), and has no `Agent` tool to invoke a platform agent itself. So the reference is analyzed **before** you're invoked: `/feat` runs the **reference platform agent** (android-agent / ios-agent) in its §Reverse-extraction mode, which reads its own repo and returns a platform-neutral **parity brief** — screens / components / behavior / states / endpoints actually called, all by role. That brief is handed to you **inline in the invocation prompt**. It is transient: there's no `_context/parity/` file, and `_tasks` is the durable record. Work from the brief exactly as you would from a Figma / HTML inventory — it *is* the spec source for this feature.
+
+### Authoring
+
+1. **Case classification still runs (Step 1).** Parity changes the spec *source* and the issue *scope*, not the 4-case logic. The reference already calls real endpoints, so the backend exists — **never case D**. If `_context/api/{domain}.md` covers those endpoints → case A (run the staleness + scope pre-checks). If `_context` is missing / partial → case B / C, with the brief's "endpoints actually called" as the temporary spec source.
+2. **Endpoints are confirmed, not speculative.** Unlike the design-only path, the reference *ships* these calls — they work. Put them in `## Endpoints` in-scope. If they're not yet in `_context/api`, mark `Domain spec: temporary — from {reference} as-built; confirm via api-agent` (case-C-style) — but they are **not** demoted into `## Open decisions` the way design-derived guesses are.
+3. **Fill UI sections from the brief.** `## Screens` / `## Components` come from the brief (Source ref = `{reference} as-built`, in place of a Figma node / HTML file). `## Shared behavior` = the brief's behavior, stated once, platform-neutral.
+4. **Parity gaps → `## Open decisions`.** States the reference itself didn't handle (the brief flags them) are decisions for the lagging platform / PM — not behavior to silently copy, and not gaps to invent a fix for.
+5. **One issue — the lagging platform only.** The reference is already done; do not re-issue it. The dry-run / live-creation (Steps 5–7) produces a **single** issue, for the lagging platform. Its body is self-contained as always, plus one line: "Parity target — match {reference}'s shipped behavior described above." In the `## Completion checklist`, the reference platform's line carries **no issue number** — write it `{reference} implementation (reference — already shipped)`; only the lagging platform's line gets a `#{N}` (mirrors the header Issue-line handling above).
+
+### Header fields (parity)
+
+```
+Status: parity — {reference} shipped ({outside spine | PR #{M}}); building {lagging}.
+Android Issue: {myorg/myapp-android#{N} | reference — already shipped, not re-issued}
+iOS Issue:     {myorg/myapp-ios#{N} | reference — already shipped, not re-issued}
+API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | otherwise: temporary — from {reference} as-built; confirm via api-agent}
+Design source: parity brief — {reference} as-built
+```
+
+### Cross-platform consistency review (parity variant)
+
+§Cross-platform consistency review runs as usual once the lagging platform opens its PR — but the **reference side may have no spine PR body** (built outside the spine). When it doesn't, the reference side of the comparison is the **parity brief captured in `_tasks`** (`## Shared behavior` / `## Screens` / `## Endpoints`), not a PR body — compare the lagging PR's `## Behavior` against that. If the reference *does* have a spine PR, use it normally.
+
 ## Invocation modes (full vs incremental)
 
 pm-agent runs in one of two modes depending on what the prompt asks for:
@@ -612,6 +648,8 @@ pm-agent runs in one of two modes depending on what the prompt asks for:
 - *Decomposition* — a large/multi-part requirement, or an explicit "break this into phases". Runs the §Epic decomposition "Decomposition" procedure: propose the phase breakdown, then author the overview + phase 1 in full mode. Phase 1's authoring is full mode (Steps 1–9) scoped to that phase.
 - *Next-phase* — a prompt naming an existing epic after a phase closed out (e.g. "{epic} 다음 phase"). Runs the §Epic decomposition "Next-phase" procedure: author the next `⬜ pending` phase in full mode, scoped to its overview scope line.
 Neither is a new *mode* — each phase is authored in **full mode**, exactly as a standalone feature. Decomposition merely adds an upfront proposal + overview-authoring step ahead of phase 1's full-mode run; next-phase is just full mode scoped to a pre-planned phase. So the "one of two modes" framing above holds: epic work resolves to full-mode phase authoring.
+
+**Cross-platform parity** is a further pattern (§Cross-platform parity), for a feature already shipped on one platform but not the other. Triggered by the `/feat` parity branch — or a prompt that names a reference platform and supplies a parity brief. It runs **full mode** (Steps 1–9): case classification and pre-checks still apply, but the spec source is the **inline parity brief** (not a Figma / HTML inventory), and Steps 5–7 create an issue for the **lagging platform only**. Like the epic patterns, it's not a new mode — full-mode authoring with a brief as the spec source and a single-platform issue scope.
 
 **Detection heuristic**:
 - Prompt references an existing `_tasks/{feature}.md` AND
