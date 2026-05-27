@@ -191,7 +191,7 @@ EOF
 chmod +x setup.sh
 ```
 
-### 3-3. settings.json — system-level deny permissions
+### 3-3. settings.json — cross-repo permissions (access + deny)
 
 `mobile-spine/.claude/settings.json` (project-scoped, commit to share with team).
 
@@ -205,6 +205,10 @@ chmod +x setup.sh
 ```json
 {
   "permissions": {
+    "additionalDirectories": [
+      "../myapp-android",
+      "../myapp-ios"
+    ],
     "allow": [
       "Edit(../myapp-android/**)",
       "Write(../myapp-android/**)",
@@ -221,11 +225,15 @@ chmod +x setup.sh
 }
 ```
 
+> **`additionalDirectories` — the lever that stops "read this file?" prompts.** Registering the two platform repos as additional working directories makes **reads / greps / finds** against them prompt-free (without it they count as outside the workspace and prompt on every access — the most common parity / implementation friction). It grants file access only — it does **not** load those repos' `.claude/` config into the spine session, which is what we want. Backend is deliberately **not** listed: api-agent reads it through approved calls, and we don't want blanket prompt-free backend access. Pair this with the platform agents' §Cross-repo path discipline — both rely on **relative** `../myapp-ios/…` paths, so keep tool calls relative (an absolute path won't match these relative rules and will prompt).
+
 > **⚠️ deny scope is `myapp-backend` only**: Claude Code's settings.json
 > permissions are project-scoped and inherited by subagents. Adding the android/ios
 > repos to deny would block their dedicated agent from working at all. Mutual
 > isolation between android and ios is reinforced via the `tools` field on each
 > agent (next section).
+
+> **Migrating an existing workspace**: scaffold-template changes do **not** back-propagate to a workspace that was already scaffolded. If yours predates this and prompts on every cross-repo read, add the `additionalDirectories` block above to your `.claude/settings.json` by hand and **restart Claude Code** (settings load at session start).
 
 > **Bash `cd` allow scope (android / ios)**: the two new `Bash(cd ../myapp-android *)` / `Bash(cd ../myapp-ios *)` entries above pre-allow `cd ../myapp-android && ...` / `cd ../myapp-ios && ...` for the genuinely-cd-requiring cases (builds, tests, anything whose tool doesn't have a `--cwd`-style flag) without a permission prompt each time. This **does** widen the auto-allow surface for **any** bash command run after `cd` into those repos — including `curl`, `git push`, process spawning, etc. (`Edit` / `Write` only cover filesystem mutations; Bash carries the wider surface.) The trade is accepted because the spine workspace already needs to drive builds, tests, and git mutations in android/ios, and tightening this would push every build back behind a per-command prompt. If your threat model treats sibling-repo shell execution as elevated, drop the two `Bash(cd ...)` allows and accept the prompts on builds. Backend has **no** `cd` allow — keep all backend access through `git -C ../myapp-backend log …` (read-only). For **read-only** cross-repo bash (git log/diff/status, gh pr/issue view, ls/grep), prefer path-flag forms like `git -C ../myapp-ios log` or `gh pr view --repo myorg/myapp-ios <n>` over `cd` — the harness auto-allows those read-only forms for free; write subcommands prompt regardless of form.
 
