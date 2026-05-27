@@ -73,9 +73,11 @@ If the requirement is **already implemented on one platform but not the other** 
      ```
      Reverse-extraction (parity brief) — see {android,ios}-agent.md §Reverse-extraction mode.
      Feature: {item 1}. This repo already ships it; the other platform does not.
-     Read your own repo and return a platform-neutral, spec-term parity brief
-     (screens / components / behavior / states / endpoints actually called — all by role,
-     no file paths / class names). Read-only — no branch, no commit, no PR. Return the brief inline.
+     Read your own repo AND mine the feature's commit history (git log/show) for what
+     changed alongside it. Return a platform-neutral, spec-term parity brief
+     (screens / components / behavior / states / endpoints actually called, PLUS a
+     Co-changed / adjacent section from the commit history — all by role, no file paths
+     / class names). Read-only — no branch, no commit, no PR. Return the brief inline.
      ```
 
      Capture the returned brief verbatim — it's transient (passed inline to pm-agent next, not written to a file).
@@ -339,8 +341,9 @@ A feature that already shipped on Android, now needed on iOS. The parity fast pa
    lagging = iOS — inferred from the note, so NO reference-platform question is asked)
 
 [/feat] Extracting parity brief — android-agent (reverse-extraction, read-only)
-  → android-agent reads ../myapp-android/, returns a spec-term brief:
-    screens / components / behavior / states / endpoints actually called (by role)
+  → android-agent reads ../myapp-android/ + the feature's commit history, returns a spec-term brief:
+    screens / components / behavior / states / endpoints actually called
+    + co-changed/adjacent areas (what the feature's commits also touched) — all by role
 
   (case auto-detected silently: _context/api/auth.md exists → case A, unconfirmed;
    Items 2/3/4 skipped — the reference is the spec. No prompts.)
@@ -350,4 +353,4 @@ A feature that already shipped on Android, now needed on iOS. The parity fast pa
 
 If the note had been just `/feat biometric login parity` (without naming the done platform), the **only** prompt would be the one reference-platform pick — still no case / spec / design questions.
 
-pm-agent then runs case-A pre-checks (the brief's endpoints are confirmed-working, so they go in-scope; staleness + scope checks run against `_context/api/auth.md`), fills `## Screens` / `## Components` / `## Shared behavior` from the brief (Source ref = `Android as-built`), routes any state the Android side didn't handle into `## Open decisions`, and writes the header with `Status: parity — Android shipped; building iOS` / `Android Issue: reference — already shipped, not re-issued` / `Design source: parity brief — Android as-built`. It prints a **single** iOS issue dry-run body. After you approve it, ios-agent implements to parity, and pm-agent's §Cross-platform consistency review later compares the iOS PR against the brief captured in `_tasks` (or the Android PR body, if Android shipped through the spine).
+pm-agent then runs case-A pre-checks (the brief's endpoints are confirmed-working, so they go in-scope; staleness + scope checks run against `_context/api/auth.md`), fills `## Screens` / `## Components` / `## Shared behavior` from the brief (Source ref = `Android as-built`), **folds the brief's co-changed/adjacent areas into `## Shared behavior` + the iOS issue scope** (or `## Open decisions` when flagged `confirm`), routes any state the Android side didn't handle into `## Open decisions`, and writes the header with `Status: parity — Android shipped; building iOS` / `Android Issue: reference — already shipped, not re-issued` / `Design source: parity brief — Android as-built`. It prints a **single** iOS issue dry-run body. After you approve it, ios-agent implements to parity, and pm-agent's §Cross-platform consistency review later compares the iOS PR against the brief captured in `_tasks` (or the Android PR body, if Android shipped through the spine).

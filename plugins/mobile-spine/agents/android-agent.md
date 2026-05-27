@@ -69,14 +69,18 @@ A second invocation mode, distinct from the implement flow below. Triggered when
 
 Procedure:
 1. Locate the feature in `../myapp-android/` (the prompt names it; grep for the screens / flows it describes).
-2. If a spine-style PR already shipped it with a spec-term `## Behavior` section, **reuse that** as the brief's spine — don't re-derive what's already written.
-3. Otherwise read the implementation and write the brief in the **same spec terms** a PR `## Behavior` section uses — by role, never by symbol. Cover:
+2. **Mine the commit history for the feature's full blast radius — not just the headline screen.** A feature rarely ships alone: the commits that built it often *also* touched a shared component, an adjacent screen, or a global handler. Reading only the current surface misses these, so the other platform ports an incomplete feature. In your repo:
+   - Find the feature's commits — `git log --oneline --grep '{feature terms}'` plus the history of its main area (`git log --oneline -- {feature paths}`); if a shipping PR / issue number is known, use its commit range.
+   - For those commits, inspect the **whole** change set (`git show --stat {sha}`, then the diffs), not just the obvious feature files — note what changed *alongside* the feature.
+   - If the feature's commits can't be confidently identified (squashed / pre-spine history / ambiguous), say so and **ask the user for the PR or commit range** — don't guess.
+3. Build the brief in the **same spec terms** a PR `## Behavior` section uses — by role, never by symbol (reuse a spine-style PR's `## Behavior` section as the spine if one already shipped it — don't re-derive what's written). Cover:
    - **Screens** — each screen / route the feature presents (by name / role).
    - **Components** — reusable UI pieces by role (e.g. "6-digit OTP input with auto-advance").
    - **Behavior** — the actual logic: entry point, gate / handler location *by role*, validation rules, navigation, error-display policy, the flow.
    - **Endpoints actually called** — path · method · request / response shape *as this app calls them*. These are real, confirmed-working — not speculative. Flag any non-standard response handling.
    - **States handled / not handled** — empty / loading / error / success; call out states the reference itself does **not** cover (these become parity gaps the other platform should decide on, not assumptions to copy).
-4. **Do not emit Android file paths / class names / line numbers.** The brief is a platform-neutral spec for the *other* platform and feeds pm-agent, which must keep `_tasks` free of per-repo code locations (pm-agent.md §_tasks authoring discipline). Describe everything by role.
+   - **Co-changed / adjacent** — from the step-2 history scan: screens or logic the feature's commits *also* modified (a shared component, an adjacent flow, a global handler). List each by role and flag `relevance: likely in-scope | confirm` — a commit can bundle unrelated work, so don't assume every co-change belongs to the feature; the lagging platform / PM decides which to port. **Default to `confirm` when commit co-occurrence is the *only* evidence** (it's a weak signal); reserve `likely in-scope` for a co-change with a real functional dependency on the feature (a shared component the feature renders, a handler its flow invokes). **This section is what stops the port from covering only the headline requirement.**
+4. **Do not emit Android file paths / class names / line numbers** — this includes the Co-changed section (describe by role, e.g. "also adjusted the global session-expiry handler", not a filename). The brief is a platform-neutral spec for the *other* platform and feeds pm-agent, which must keep `_tasks` free of per-repo code locations (pm-agent.md §_tasks authoring discipline).
 5. Report the brief **inline in your message** — it is transient. `/feat` passes it into the pm-agent prompt; it is not written to any file.
 
 > This mode never writes anywhere — `_context/` and `_tasks/` are read-only here too. pm-agent owns `_tasks`; the brief lives only in your returned message.
