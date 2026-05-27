@@ -77,7 +77,7 @@ Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-
 ## Auto-loaded channels
 
 - **CLAUDE.md (this file)** — auto-loaded on session start. Routing and the directory map are immediately visible.
-- **Subagent definitions** — plugin-provided agents are **discovered** at session start (their frontmatter is registered so Claude can invoke them) but their *bodies* are loaded on demand, not pinned into the main session's context. After a plugin update (`/plugin marketplace update`), restart Claude Code so the new definitions are picked up.
+- **Subagent definitions** — plugin-provided agents are **discovered** at session start (their frontmatter is registered so Claude can invoke them) but their *bodies* are loaded on demand, not pinned into the main session's context. After a plugin update (`/plugin marketplace update`), run `/reload-plugins` to pick up the new definitions in the current session (or restart Claude Code).
 - **`.claude/mobile-spine.config.yaml`** — not auto-loaded into context, but read by every agent at invocation to resolve workspace values. Edit this file directly if your org / app / branch / figma namespace changes.
 - **User memory** (optional) — if your Claude Code setup uses a persistent memory directory, its index loads automatically. Useful for user / feedback / project / reference notes that should outlive a session.
 

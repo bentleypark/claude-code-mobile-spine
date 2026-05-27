@@ -7,7 +7,7 @@
 - [ ] Scaffold edits live under `plugins/mobile-spine/skills/init/templates/` (no root mirror)
 - [ ] If user-visible behavior changed, `plugins/mobile-spine/.claude-plugin/plugin.json` `version` bumped
 - [ ] If `SKILL.md` substitution rules changed, examples in §4-2 stay aligned with reality
-- [ ] If a `tools:` field changed, you restarted Claude Code and confirmed the agent still loads in a scaffolded workspace
+- [ ] If a `tools:` field changed, you reloaded (`/reload-plugins`, or restarted Claude Code) and confirmed the agent still loads in a scaffolded workspace
 - [ ] If the plugin / skill / marketplace was renamed, both manifests updated and the breaking change is called out
 
 ## Tone checklist
