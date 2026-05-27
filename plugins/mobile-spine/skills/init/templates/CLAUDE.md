@@ -72,12 +72,12 @@ Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-
 | `/mobile-spine:feat [note]` | Interview for a new feature → invoke pm-agent | plugin: `plugins/mobile-spine/commands/feat.md` |
 | `/mobile-spine:init` | (Re-)scaffold a workspace | plugin: `plugins/mobile-spine/commands/init.md` + `skills/init/SKILL.md` |
 
-`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
+`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Two early checks can divert before the case interview: an epic-sized requirement routes to phased decomposition, and a feature **already built on one platform but not the other** routes to cross-platform parity (the reference platform agent reverse-extracts a spec-term brief; pm-agent authors `_tasks` + a single issue for the lagging platform). Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
 
 ## Auto-loaded channels
 
 - **CLAUDE.md (this file)** — auto-loaded on session start. Routing and the directory map are immediately visible.
-- **Subagent definitions** — plugin-provided agents are **discovered** at session start (their frontmatter is registered so Claude can invoke them) but their *bodies* are loaded on demand, not pinned into the main session's context. After a plugin update (`/plugin marketplace update`), restart Claude Code so the new definitions are picked up.
+- **Subagent definitions** — plugin-provided agents are **discovered** at session start (their frontmatter is registered so Claude can invoke them) but their *bodies* are loaded on demand, not pinned into the main session's context. After a plugin update (`/plugin marketplace update`), run `/reload-plugins` to pick up the new definitions in the current session (or restart Claude Code).
 - **`.claude/mobile-spine.config.yaml`** — not auto-loaded into context, but read by every agent at invocation to resolve workspace values. Edit this file directly if your org / app / branch / figma namespace changes.
 - **User memory** (optional) — if your Claude Code setup uses a persistent memory directory, its index loads automatically. Useful for user / feedback / project / reference notes that should outlive a session.
 
