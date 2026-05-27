@@ -85,6 +85,24 @@ field so installed users get the update on `/plugin marketplace update`.
 If you rename or restructure (skill name, plugin name, marketplace name),
 update both manifests and call out the breaking change in the PR.
 
+## Linting (pre-merge consistency)
+
+```
+python3 scripts/lint.py
+```
+
+A stdlib-only static lint, also run on every PR by `.github/workflows/lint.yml`.
+It checks **structural** consistency — valid JSON manifests + semver, well-formed
+agent/command frontmatter, resolvable markdown relative links, no dangling
+`§section` references, and header-field enumerations (the `_tasks` output-format
+block ↔ §Checklist update policy ↔ feat.md "standard header") staying in sync.
+
+It deliberately does **not** check behavior or logical consistency — these are
+LLM-interpreted instructions, so a contradiction like "exclude case D but still
+offer it" is invisible to a static pass. That layer stays with the review agent
+and the `SETUP.md §9` real-usage verification. A clean lint is necessary, not
+sufficient.
+
 ## PR scope
 
 One concern per PR. Don't bundle a policy change with a tone fix and a new
