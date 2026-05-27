@@ -39,6 +39,15 @@ If a write attempt is detected outside `../myapp-android/`, abort:
 "[android-agent] Path outside allowed scope: {path}. Aborting."
 Allowed paths: `../myapp-android/`, `_tasks/` (read), `_context/` (read).
 
+## Cross-repo path discipline (avoid needless permission prompts)
+
+Reference files in your platform repo by the **relative `../myapp-android/…` path**, and prefer the **Read / Grep / Glob tools** over `cat` / `grep` / `find` run through Bash. The spine workspace pre-approves cross-repo access in `.claude/settings.json` using **relative** forms — `../myapp-android` in `additionalDirectories` (so reads / greps don't prompt) and `Edit`/`Write(../myapp-android/**)` (so edits don't prompt). Tool calls that don't match those forms prompt on every action. Two habits keep you inside the pre-approved scope:
+
+- **Relative, not absolute** — edit `../myapp-android/path/File.kt`, not `/Users/…/myapp-android/path/File.kt`. An absolute path doesn't match the relative allow-rule, so it prompts.
+- **Tools, not `cd … && cmd`** — search with Grep/Glob and read with Read; reserve Bash for what only a shell can do (builds: `cd ../myapp-android && ./gradlew …`, covered by the `Bash(cd ../myapp-android *)` allow). A compound `cd /abs && grep …` is permission-matched as a whole and almost always prompts.
+
+If a workspace still prompts on every read, its `.claude/settings.json` predates `additionalDirectories` — see SETUP.md §3-3 (Migrating an existing workspace).
+
 ## Git rule
 - Base branch: `develop` (not `master` / `main` unless your repo follows that convention)
 - Workflow: confirm issue → create branch → implement → PR

@@ -1,5 +1,9 @@
 {
   "permissions": {
+    "additionalDirectories": [
+      "../myapp-android",
+      "../myapp-ios"
+    ],
     "allow": [
       "Edit(../myapp-android/**)",
       "Write(../myapp-android/**)",
