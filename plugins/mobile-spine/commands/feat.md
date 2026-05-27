@@ -22,12 +22,26 @@ This command operates on a scaffolded mobile-spine workspace. Before running the
 
 ## Interview procedure
 
-For each item, do not guess on a missing answer — ask explicitly. Do not advance
-to the next item before getting an answer.
+Run the §Pre-pass first, then the items. The rule is **ask only for what's still unknown**: any item the pre-pass already answered (from `$ARGUMENTS` or from disk) is skipped, and whatever remains is batched into as few `AskUserQuestion` calls as possible. Never guess a missing answer — but never re-ask one the user already gave in the note, either. Do not advance to the next item before getting an answer that's actually needed.
+
+### Pre-pass: parse `$ARGUMENTS` once (skip what's already answered)
+
+Before Item 1, read `$ARGUMENTS` once and extract whatever the user already supplied. A rich one-line invocation should finish with zero or one follow-up; a bare `/feat` falls back to the full prompts. Extract best-effort — leave a field blank if absent, never invent:
+
+- **feature + domain** — e.g. "email verification - auth", "push settings (alarm domain)".
+- **spec source** — a backend PR URL, an OpenAPI path, a doc URL, or the literal "none — derive from design" / "no API spec".
+- **design source** — "figma" (multi-select), explicit Figma nodeIds (`1:1075, …`), an HTML/CSS path, or "no design".
+- **case hint** — "backend not built" / "frontend-first" → case-D hint; any existing-vs-new-endpoint hint if stated.
+
+Then **auto-detect the design source from disk**: if `_context/design/{feature}/` exists and holds `*.html` / `*.css`, treat the design source as `html` at that path **without asking** (Item 4 becomes a one-line confirmation at most).
+
+Carry these forward; an item whose value is already known is **not** re-asked. After the pre-pass, if more than one independent item still needs input, ask them together in a **single `AskUserQuestion`** (up to 4 questions) instead of one prompt per turn. Keep ordering only for a real dependency — Item 3 (spec source) depends on the case from Item 2, so those stay sequential; Item 4 (design source) is independent and can share a screen with Item 2.
+
+**Empty-analysis guard (evaluated here, not only in Item 3).** Skipping items must not bypass the "nothing to analyze" check. On the *collected* values — regardless of which item supplied them — if the spec source is "none — derive from design" (or absent) **and** there is no design source (none named in the note, none auto-detected on disk), steer to **case D** (defer): a design-only run with no design has nothing to inventory. Do this before invoking pm-agent. (Because both Item 3 and Item 4 can be skipped by the pre-pass, this gate can't live inside Item 3 alone — that's why it's stated here.)
 
 ### Item 1: feature name + domain key
 
-Try to extract feature/domain from `$ARGUMENTS`. If unclear, ask in plain text:
+If the §Pre-pass already captured feature + domain, skip this. Otherwise ask in plain text:
 
 > [/feat] What is the feature name and the domain key?
 > Examples: "Email verification - auth" / "Phone verification - auth" / "Push settings - alarm"
@@ -75,7 +89,7 @@ If "Specify a different case" is chosen, ask the user which of A/B/C/D applies.
 
 ### Item 3: spec source (case B/C only — skip for A/D)
 
-For case B/C only:
+Skip if the §Pre-pass already captured a spec source (a URL / path, or "none — derive from design"). Otherwise, for case B/C only:
 
 > [/feat] Where is the spec source for the new endpoint(s) / domain?
 > One of: backend PR URL / OpenAPI file path / external doc URL / **"none — derive from design"**.
@@ -94,7 +108,7 @@ Case D: pm-agent will defer (skip).
 
 ### Item 4: design source
 
-Ask via `AskUserQuestion`:
+Skip if the §Pre-pass already determined the design source (named in `$ARGUMENTS`, or auto-detected at `_context/design/{feature}/`). Otherwise ask via `AskUserQuestion` (batchable with Item 2 per the §Pre-pass — both can share one screen when neither is yet known):
 
 ```
 Question: "What is the design source for UI sections?"
@@ -111,7 +125,7 @@ Options:
 
 ## pm-agent prompt construction
 
-Plug the 4 answers into the template below and invoke pm-agent (Agent tool, subagent_type: pm-agent):
+Plug the collected answers (from the §Pre-pass and any follow-up prompts) into the template below and invoke pm-agent (Agent tool, subagent_type: pm-agent):
 
 ```
 ## Target
@@ -232,6 +246,26 @@ pm-agent then:
 - Prints two GitHub issue dry-run bodies (android / ios) — not yet created
 
 You approve issue creation, then hand `_tasks/push-notification-settings.md` to android-agent and ios-agent: each runs phase 1 (inventory via the `## Candidate assets` keywords → implement → diff report), then phase 2 after your explicit approval (commit + Draft PR).
+
+### Variant — one-shot (everything in the note, at most one confirm)
+
+The same case-C run when the user puts it all on one line. The §Pre-pass extracts feature + domain + spec source + design source, so Items 1/3/4 are skipped and **only the Item 2 case confirm remains** (case correctness is never silently assumed):
+
+```
+> /feat push notification settings - alarm, backend PR https://github.com/myorg/myapp-backend/pull/NNN, figma multi-select
+
+  (Pre-pass: feature "push notification settings", domain "alarm",
+   spec source = the PR URL, design source = figma multi-select → all four known)
+  (Item 1b epic check: single feature → continue; Items 1/3/4 skipped — already known)
+
+[/feat] Auto-detected: case C (_context/api/alarm.md absent). Correct?
+  [ Correct / Specify a different case ]
+< Correct
+
+[/feat] Invoking pm-agent — case C, domain alarm, design source figma multi-select
+```
+
+If the note also omits the design source, that one question batches onto the same screen as the case confirm — never the whole interview again.
 
 ### Variant — HTML mockup, no API spec yet (design-only)
 
