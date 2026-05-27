@@ -95,6 +95,25 @@ Procedure:
 
 > This mode never writes anywhere — `_context/` and `_tasks/` are read-only here too. pm-agent owns `_tasks`; the brief lives only in your returned message.
 
+## Scope cross-check mode (parity — lagging side)
+
+The mirror of §Reverse-extraction mode, for when **this** repo is the *lagging* platform (the one that does **not** yet ship the feature). Triggered when the prompt asks you to **cross-check a reference-derived scope**. `/feat` runs this right after the reference platform agent produced its parity brief, so pm-agent can size the lagging issue to *this* repo's reality — not a copy of the reference's blast radius. A reference's change scope is only a **candidate** scope here: this repo may already have some of it, may need a different shape, or may need *more* (an abstraction the reference already had that this repo lacks).
+
+**Read-only.** No branch, no `git add` / `commit`, no PR — you read your own repo to estimate work, not change it. (The per-repo Figma 5-step procedure does not apply — you are sizing work, not building UI.)
+
+Input: the reference's parity brief (screens / components / behavior / states / endpoints + Co-changed / adjacent), passed inline.
+
+Procedure:
+1. For **each scope item** in the brief, check this repo and classify it:
+   - **already present** — an equivalent exists here (a shared component, a handler, a screen) → little / no work; name what's reused, by role.
+   - **to build** — absent here → new work.
+   - **adapt** — present but a different shape (platform convention, different abstraction) → work is adaptation; note how it differs.
+   - **n/a** — no counterpart concept on this platform.
+2. **Lagging-only additions** — work this repo needs that the reference did **not**, because the reference already had something this repo lacks (e.g. the reference had a shared session-expiry handler; this repo has none, so parity also requires building it). These **expand** the scope beyond the reference's blast radius and are the most common reason a port is under-estimated — surface them explicitly.
+3. Output a **scope reconciliation** inline, by role (no file paths / type names — same rule as §Reverse-extraction): each brief item → classification + a one-line work note, then the lagging-only additions. Flag anything whose right scope is genuinely unclear as `decision` so pm-agent routes it to `## Open decisions`.
+
+This is an *estimate from reading*, not implementation — the deeper file-level inventory (reuse / extend / new / remove) still runs at implementation time (Phase 1 §Candidate assets). This cross-check just gets the issue's scope right up front. Like §Reverse-extraction, it writes nowhere; the reconciliation lives only in your returned message.
+
 ## When pm-agent has produced _tasks
 If your per-repo CLAUDE.md defines a 5-step procedure:
 - Steps 1 (list spec) and 2 (map) are covered by _tasks. You may skip them.

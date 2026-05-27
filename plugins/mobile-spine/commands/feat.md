@@ -82,7 +82,21 @@ If the requirement is **already implemented on one platform but not the other** 
 
      Capture the returned brief verbatim — it's transient (passed inline to pm-agent next, not written to a file).
 
-  4. **Invoke pm-agent** using the §"pm-agent prompt construction — cross-platform parity" template below, pasting the brief inline. Mark the case as auto-detected/unconfirmed so pm-agent knows to re-validate.
+  4. **Cross-check the scope on the lagging platform.** Invoke the *lagging* platform agent (Agent tool, `subagent_type`: the **other** of `android-agent` / `ios-agent`) in its §Scope cross-check mode, passing the step-3 brief:
+
+     ```
+     Scope cross-check (parity, lagging side) — see {android,ios}-agent.md §Scope cross-check mode.
+     This repo does NOT yet ship "{item 1}". Below is the reference platform's parity brief.
+     Read your own repo and return a scope reconciliation: classify each brief item
+     already-present / to-build / adapt / n/a, then list lagging-only additions (work this
+     repo needs that the reference didn't — an abstraction it had that you lack). By role,
+     no file paths. Read-only — no branch, no commit, no PR. Return inline.
+
+     {paste the step-3 brief}
+     ```
+
+     Capture the reconciliation inline (transient). This turns the reference's *candidate* scope into *this* repo's *actual* scope.
+  5. **Invoke pm-agent** using the §"pm-agent prompt construction — cross-platform parity" template below, pasting **both** the brief (step 3) and the scope reconciliation (step 4) inline. Mark the case as auto-detected/unconfirmed so pm-agent knows to re-validate.
 
 ### Item 2: case auto-detection + user confirmation
 
@@ -206,7 +220,7 @@ next-phase invocations.
 
 ## pm-agent prompt construction — cross-platform parity
 
-When the parity check (Item 1c) routed here, invoke pm-agent (Agent tool, `subagent_type`: `pm-agent`) with this template — the brief captured in Item 1c step 1 is pasted inline:
+When the parity check (Item 1c) routed here, invoke pm-agent (Agent tool, `subagent_type`: `pm-agent`) with this template — the brief (Item 1c step 3) and the scope reconciliation (Item 1c step 4) are pasted inline:
 
 ```
 ## Target
@@ -216,13 +230,17 @@ When the parity check (Item 1c) routed here, invoke pm-agent (Agent tool, `subag
 - Cross-platform parity: reference = {reference platform}, lagging = {lagging platform}
 
 ## Parity brief (reference = {reference platform}, as-built — transient spec source)
-{paste the reference platform agent's brief from Item 1c step 1, verbatim}
+{paste the reference platform agent's brief from Item 1c step 3, verbatim}
+
+## Scope reconciliation (lagging = {lagging platform}, cross-checked — transient)
+{paste the lagging platform agent's scope reconciliation from Item 1c step 4, verbatim}
 
 ## Procedure
 Run §Cross-platform parity in pm-agent.md (full mode, Steps 1–9):
 - Case classification + pre-checks still apply. The reference calls real endpoints → backend exists, so never case D.
 - Spec source = the parity brief above (treat it like a Figma / HTML inventory). UI sections, ## Shared behavior, and endpoints come from it.
 - Endpoints the reference calls are confirmed-working → list them in-scope; mark `temporary — from {reference} as-built; confirm via api-agent` if not already in _context/api.
+- **Size the lagging issue scope from the Scope reconciliation, not the raw brief**: already-present → note as reuse (not a task); to-build / adapt / lagging-only additions → in scope + checklist; `decision`-flagged → ## Open decisions (§Cross-platform parity authoring step 5).
 - Parity gaps the brief flags (states the reference itself did not handle) → ## Open decisions, not invented.
 - Steps 5–7: create a GitHub issue for the LAGGING platform ({lagging}) ONLY. Do NOT re-issue the reference.
 
@@ -252,10 +270,11 @@ For the epic-decomposition path, instead print:
 [/feat] Invoking pm-agent — epic decomposition for {epic}
 ```
 
-For the cross-platform parity path, print one line before extraction and one before pm-agent:
+For the cross-platform parity path, print one line before extraction, one before the scope cross-check, and one before pm-agent:
 
 ```
 [/feat] Extracting parity brief — {reference}-agent (reverse-extraction, read-only)
+[/feat] Cross-checking scope — {lagging}-agent (scope cross-check, read-only)
 [/feat] Invoking pm-agent — cross-platform parity, reference {reference}, building {lagging}, case {X}
 ```
 
@@ -345,6 +364,11 @@ A feature that already shipped on Android, now needed on iOS. The parity fast pa
     screens / components / behavior / states / endpoints actually called
     + co-changed/adjacent areas (what the feature's commits also touched) — all by role
 
+[/feat] Cross-checking scope — ios-agent (scope cross-check, read-only)
+  → ios-agent reads ../myapp-ios/ against the brief, returns a scope reconciliation:
+    each item already-present / to-build / adapt / n/a, + iOS-only additions
+    (e.g. "Android had a shared BiometricPrompt wrapper; iOS has none → also build that")
+
   (case auto-detected silently: _context/api/auth.md exists → case A, unconfirmed;
    Items 2/3/4 skipped — the reference is the spec. No prompts.)
 
@@ -353,4 +377,4 @@ A feature that already shipped on Android, now needed on iOS. The parity fast pa
 
 If the note had been just `/feat biometric login parity` (without naming the done platform), the **only** prompt would be the one reference-platform pick — still no case / spec / design questions.
 
-pm-agent then runs case-A pre-checks (the brief's endpoints are confirmed-working, so they go in-scope; staleness + scope checks run against `_context/api/auth.md`), fills `## Screens` / `## Components` / `## Shared behavior` from the brief (Source ref = `Android as-built`), **folds the brief's co-changed/adjacent areas into `## Shared behavior` + the iOS issue scope** (or `## Open decisions` when flagged `confirm`), routes any state the Android side didn't handle into `## Open decisions`, and writes the header with `Status: parity — Android shipped; building iOS` / `Android Issue: reference — already shipped, not re-issued` / `Design source: parity brief — Android as-built`. It prints a **single** iOS issue dry-run body. After you approve it, ios-agent implements to parity, and pm-agent's §Cross-platform consistency review later compares the iOS PR against the brief captured in `_tasks` (or the Android PR body, if Android shipped through the spine).
+pm-agent then runs case-A pre-checks (the brief's endpoints are confirmed-working, so they go in-scope; staleness + scope checks run against `_context/api/auth.md`), fills `## Screens` / `## Components` / `## Shared behavior` from the brief (Source ref = `Android as-built`), **folds the brief's co-changed/adjacent areas into `## Shared behavior` + the iOS issue scope** (or `## Open decisions` when flagged `confirm`), **sizes the iOS issue scope from the reconciliation** (already-present items dropped as reuse, to-build / adapt / iOS-only additions kept as tasks, `decision`-flagged ones to `## Open decisions`), routes any state the Android side didn't handle into `## Open decisions`, and writes the header with `Status: parity — Android shipped; building iOS` / `Android Issue: reference — already shipped, not re-issued` / `Design source: parity brief — Android as-built`. It prints a **single** iOS issue dry-run body. After you approve it, ios-agent implements to parity, and pm-agent's §Cross-platform consistency review later compares the iOS PR against the brief captured in `_tasks` (or the Android PR body, if Android shipped through the spine).
