@@ -71,6 +71,49 @@ For an HTML mockup, the parity target is the rendered mockup, not pixel-matching
 - Use the URLSession / Alamofire example from api-agent as the starting point.
 - `../myapp-backend/` is read-only — no modifications.
 
+## Reverse-extraction mode (parity brief)
+
+A second invocation mode, distinct from the implement flow below. Triggered when the prompt asks for a **parity brief** / **reverse-extraction** of a feature this repo **already ships** — used by the cross-platform parity flow (one platform built it, the other hasn't; see pm-agent.md §Cross-platform parity, driven by `/feat`). This already-built platform is the de-facto spec; the goal is a platform-neutral, spec-term description so the *other* platform can reach parity.
+
+**Read-only.** No branch, no `git add` / `commit`, no PR — you are reading your own repo and reporting, not changing it. (If the prompt asks you to *implement* a parity feature instead, that's the normal two-phase flow below, working from the `_tasks` pm-agent authored — not this mode. The per-repo Figma 5-step procedure does not apply to extraction — you are reading shipped code, not building UI.)
+
+Procedure:
+1. Locate the feature in `../myapp-ios/` (the prompt names it; grep for the screens / flows it describes).
+2. **Mine the commit history for the feature's full blast radius — not just the headline screen.** A feature rarely ships alone: the commits that built it often *also* touched a shared component, an adjacent screen, or a global handler. Reading only the current surface misses these, so the other platform ports an incomplete feature. In your repo:
+   - Find the feature's commits — `git log --oneline --grep '{feature terms}'` plus the history of its main area (`git log --oneline -- {feature paths}`); if a shipping PR / issue number is known, use its commit range.
+   - For those commits, inspect the **whole** change set (`git show --stat {sha}`, then the diffs), not just the obvious feature files — note what changed *alongside* the feature.
+   - If the feature's commits can't be confidently identified (squashed / pre-spine history / ambiguous), say so and **ask the user for the PR or commit range** — don't guess.
+3. Build the brief in the **same spec terms** a PR `## Behavior` section uses — by role, never by symbol (reuse a spine-style PR's `## Behavior` section as the spine if one already shipped it — don't re-derive what's written). Cover:
+   - **Screens** — each screen / route the feature presents (by name / role).
+   - **Components** — reusable UI pieces by role (e.g. "6-digit OTP input with auto-advance").
+   - **Behavior** — the actual logic: entry point, gate / handler location *by role*, validation rules, navigation, error-display policy, the flow.
+   - **Endpoints actually called** — path · method · request / response shape *as this app calls them*. These are real, confirmed-working — not speculative. Flag any non-standard response handling.
+   - **States handled / not handled** — empty / loading / error / success; call out states the reference itself does **not** cover (these become parity gaps the other platform should decide on, not assumptions to copy).
+   - **Co-changed / adjacent** — from the step-2 history scan: screens or logic the feature's commits *also* modified (a shared component, an adjacent flow, a global handler). List each by role and flag `relevance: likely in-scope | confirm` — a commit can bundle unrelated work, so don't assume every co-change belongs to the feature; the lagging platform / PM decides which to port. **Default to `confirm` when commit co-occurrence is the *only* evidence** (it's a weak signal); reserve `likely in-scope` for a co-change with a real functional dependency on the feature (a shared component the feature renders, a handler its flow invokes). **This section is what stops the port from covering only the headline requirement.**
+4. **Do not emit iOS file paths / type names / line numbers** — this includes the Co-changed section (describe by role, e.g. "also adjusted the global session-expiry handler", not a filename). The brief is a platform-neutral spec for the *other* platform and feeds pm-agent, which must keep `_tasks` free of per-repo code locations (pm-agent.md §_tasks authoring discipline).
+5. Report the brief **inline in your message** — it is transient. `/feat` passes it into the pm-agent prompt; it is not written to any file.
+
+> This mode never writes anywhere — `_context/` and `_tasks/` are read-only here too. pm-agent owns `_tasks`; the brief lives only in your returned message.
+
+## Scope cross-check mode (parity — lagging side)
+
+The mirror of §Reverse-extraction mode, for when **this** repo is the *lagging* platform (the one that does **not** yet ship the feature). Triggered when the prompt asks you to **cross-check a reference-derived scope**. `/feat` runs this right after the reference platform agent produced its parity brief, so pm-agent can size the lagging issue to *this* repo's reality — not a copy of the reference's blast radius. A reference's change scope is only a **candidate** scope here: this repo may already have some of it, may need a different shape, or may need *more* (an abstraction the reference already had that this repo lacks).
+
+**Read-only.** No branch, no `git add` / `commit`, no PR — you read your own repo to estimate work, not change it. (The per-repo Figma 5-step procedure does not apply — you are sizing work, not building UI.)
+
+Input: the reference's parity brief (screens / components / behavior / states / endpoints + Co-changed / adjacent), passed inline.
+
+Procedure:
+1. For **each scope item** in the brief, check this repo and classify it:
+   - **already present** — an equivalent exists here (a shared component, a handler, a screen) → little / no work; name what's reused, by role.
+   - **to build** — absent here → new work.
+   - **adapt** — present but a different shape (platform convention, different abstraction) → work is adaptation; note how it differs.
+   - **n/a** — no counterpart concept on this platform.
+2. **Lagging-only additions** — work this repo needs that the reference did **not**, because the reference already had something this repo lacks (e.g. the reference had a shared session-expiry handler; this repo has none, so parity also requires building it). These **expand** the scope beyond the reference's blast radius and are the most common reason a port is under-estimated — surface them explicitly.
+3. Output a **scope reconciliation** inline, by role (no file paths / type names — same rule as §Reverse-extraction): each brief item → classification + a one-line work note, then the lagging-only additions. Flag anything whose right scope is genuinely unclear as `decision` so pm-agent routes it to `## Open decisions`.
+
+This is an *estimate from reading*, not implementation — the deeper file-level inventory (reuse / extend / new / remove) still runs at implementation time (Phase 1 §Candidate assets). This cross-check just gets the issue's scope right up front. Like §Reverse-extraction, it writes nowhere; the reconciliation lives only in your returned message.
+
 ## When pm-agent has produced _tasks
 If your per-repo CLAUDE.md defines a 5-step procedure:
 - Steps 1 (list spec) and 2 (map) are covered by _tasks. You may skip them.
@@ -80,7 +123,7 @@ If invoked without _tasks: run the full 5-step procedure from step 1.
 
 ## Execution order
 
-This agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR.
+In the default **implement** flow, this agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR. (§Reverse-extraction mode above is the separate, read-only alternative.)
 
 ### Phase 1 (implement + review report)
 1. Read `_tasks/{feature}.md` (note the issue number).
