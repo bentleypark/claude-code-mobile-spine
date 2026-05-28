@@ -16,10 +16,10 @@ Install the bundled Claude Code plugin and run `/mobile-spine:init`: a
 - **Four subagents** with explicit responsibilities and allowed paths:
   - `api-agent` — reads the backend, writes `_context/api/{domain}.md`
   - `pm-agent` — reads a design source (Figma MCP or an HTML mockup) + API specs, writes `_tasks/{feature}.md`, opens GitHub issues per platform
-  - `android-agent` — implements in `../myapp-android/`
-  - `ios-agent` — implements in `../myapp-ios/`
+  - `android-agent` — implements in `../myapp-android/`; also a read-only **parity mode** (reverse-extraction + scope cross-check) when porting a feature from the other platform
+  - `ios-agent` — implements in `../myapp-ios/`; same read-only parity mode
 - **Isolation model** — `settings.json` `deny` should block writes to the backend repo (verify in week 0 — see SETUP.md §9 Item 3); each agent's `description` + per-agent allowed-paths in the prompt body keep android↔ios mutually isolated (prompt-level — relies on the model's cooperation, not a hard technical block).
-- **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) → pm-agent prompt auto-built. Spec source accepts "none — derive from design" for a design-only (no requirements doc) feature. Two early checks divert before the case interview: an epic-sized requirement routes to phased decomposition, and a feature **already built on one platform but not the other** routes to cross-platform parity.
+- **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) → pm-agent prompt auto-built. A rich one-line `/feat <note>` is parsed up front (one-shot), so only the still-unanswered items are asked. Spec source accepts "none — derive from design" for a design-only (no requirements doc) feature. Two early checks divert before the case interview: an epic-sized requirement routes to phased decomposition, and a feature **already built on one platform but not the other** routes to cross-platform parity.
 - **Cross-platform parity flow** — when a feature already shipped on one platform (often outside the spine), the reference platform agent reverse-extracts a platform-neutral, spec-term brief; pm-agent authors `_tasks` from it and opens a GitHub issue for the **lagging platform only**. pm-agent still never reads platform source — the brief comes from the platform agent.
 - **4-case classification** for every new feature:
   - A: existing endpoint / B: new endpoint in existing domain / C: new domain / D: backend not built
@@ -29,6 +29,7 @@ Install the bundled Claude Code plugin and run `/mobile-spine:init`: a
   - 3) design source availability — figma / html / none (no inventing UI sections when none)
 - **Two-phase agent invocation** — phase 1 implements + reports diff; phase 2 (only after explicit user approval) commits and opens a Draft PR. No surprise pushes.
 - **Self-contained GitHub issue bodies** — the platform sessions never need to know mobile-spine exists.
+- **Post-merge close-out** — after both PRs merge, pm-agent finalizes `_tasks` and records the per-platform shipped client version in a `Release:` header field (Android and iOS may ship at different app versions).
 - **Phased adoption guide** — week-0 verification (subagent reaches `../` paths, `develop` branch present, `/remove-dir` unsupported, settings deny works, Figma MCP namespace identified), week-1 api-agent only, week-2 + pm-agent, week-3 + android/ios.
 
 ---
@@ -88,20 +89,24 @@ After scaffolding, run the week-0 verification (the scaffolded workspace's
 ```
 claude-code-mobile-spine/
 ├── README.md, LICENSE, .gitignore, CONTRIBUTING.md
-├── .github/{ISSUE_TEMPLATE/, PULL_REQUEST_TEMPLATE.md}
+├── .github/{ISSUE_TEMPLATE/, PULL_REQUEST_TEMPLATE.md, workflows/lint.yml}
+├── scripts/
+│   └── lint.py                                     ← static consistency lint (CI + local)
 ├── .claude-plugin/
 │   └── marketplace.json                            ← marketplace catalog
 └── plugins/
     └── mobile-spine/
         ├── .claude-plugin/
         │   └── plugin.json                         ← plugin manifest
+        ├── agents/{api,pm,android,ios}-agent.md    ← plugin primitives (the four subagents)
+        ├── commands/{init,feat}.md                 ← plugin primitives (slash commands)
         └── skills/
             └── init/
                 ├── SKILL.md                        ← the interactive skill
-                ├── README.md
+                ├── README.md, smoke-test.sh
                 └── templates/                      ← scaffold source the skill copies
                     ├── CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore
-                    ├── .claude/{settings.json, agents/, commands/}
+                    ├── .claude/{settings.json, commands/}   ← no agents/ (agents are plugin-provided)
                     ├── _context/{api/.gitkeep, design/.gitkeep, operations.md}
                     └── _tasks/.gitkeep
 ```
@@ -113,7 +118,7 @@ claude-code-mobile-spine/
 ├── <your-app>-spine/
 │   ├── CLAUDE.md, SETUP.md, LICENSE, .gitignore
 │   ├── README.md                                  ← workspace-flavored (operator guide, not this repo's README)
-│   ├── .claude/{settings.json, agents/, commands/}
+│   ├── .claude/{settings.json, commands/, mobile-spine.config.yaml}   ← agents are plugin-provided, not scaffolded here
 │   ├── _context/{api/.gitkeep, design/.gitkeep, operations.md}
 │   └── _tasks/.gitkeep
 ├── <your-app>-android/
@@ -133,6 +138,7 @@ distinct from this repo's outward-facing README you're reading now.
 - Plugin name: `mobile-spine`. Skill name: `init`. Slash command: `/mobile-spine:init`.
 - Placeholder names used inside the bundled scaffold: `myorg`, `myapp`, `myapp-{android,ios,backend}` — substituted at scaffold time by the skill.
 - The skill defaults to `mcp__figma__*` for the Figma MCP namespace; pick a different option (or replace later) if your Figma MCP server uses a different namespace.
+- A static-consistency lint (`scripts/lint.py`) runs on every PR via GitHub Actions — it checks manifest validity, agent/command frontmatter, markdown links, header-field enumerations, and `§section` references (structure, not behavior). Run it locally with `python3 scripts/lint.py`.
 
 ---
 

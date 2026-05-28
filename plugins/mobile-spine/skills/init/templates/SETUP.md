@@ -239,7 +239,7 @@ chmod +x setup.sh
 
 ### 3-4. Isolation via the agent `tools` field (plugin-shipped — reference only)
 
-The `tools` field in each subagent's frontmatter restricts which tools the agent can call (simpler and stricter than path deny rules). In v2.0 the agents are plugin primitives — their `tools` frontmatter ships with the plugin and updates automatically via `/plugin marketplace update`. The current shipped defaults:
+The `tools` field in each subagent's frontmatter restricts which tools the agent can call (simpler and stricter than path deny rules). The agents are plugin primitives — their `tools` frontmatter ships with the plugin and updates automatically via `/plugin marketplace update`. The current shipped defaults:
 
 | Agent | tools (canonical source: `plugins/mobile-spine/agents/<name>.md` frontmatter) |
 |---|---|
@@ -250,7 +250,7 @@ The `tools` field in each subagent's frontmatter restricts which tools the agent
 
 > **If your Figma MCP namespace is neither `mcp__figma__*` nor `mcp__figma-desktop__*`** (e.g. a custom server), MCP calls from `pm-agent` will be blocked. Override at workspace level: create `.claude/agents/pm-agent.md` with your namespace added to `tools`. Project-level agents take precedence over plugin-level. Cost: you opt out of plugin updates for `pm-agent`.
 
-> The above snapshot reflects v2.0.0. For the live, canonical list, read the actual file under `plugins/mobile-spine/agents/` (or browse on GitHub).
+> This snapshot can drift as the plugin evolves. For the live, canonical list, read the actual file under `plugins/mobile-spine/agents/` (or browse on GitHub).
 
 ### 3-5. Run Claude Code
 
