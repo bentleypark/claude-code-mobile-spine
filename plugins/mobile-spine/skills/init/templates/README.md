@@ -54,8 +54,10 @@ claude
 ## Daily workflow
 
 ```
-/feat
-  └─ 4-item interview (feature + domain / case auto-detect / spec source / design source)
+/feat [rich one-liner — parsed up front; only the still-unanswered items are asked]
+  ├─ epic-sized requirement?          → phased decomposition (one phase authored at a time)
+  ├─ already built on one platform?   → cross-platform parity (reference brief → lagging-platform issue only)
+  └─ otherwise: 4-item interview (feature + domain / case auto-detect / spec source / design source)
       └─ pm-agent
            ├─ pre-checks (staleness / scope / design source)
            ├─ GitHub issue dry-run × 2 (android + ios) → user approval → live create
@@ -63,6 +65,7 @@ claude
                 └─ android-agent ∥ ios-agent (parallel)
                      ├─ phase 1: implement + diff report
                      └─ phase 2 (after explicit approval): commit + Draft PR
+                          └─ both PRs merged → pm-agent close-out (Status + per-platform `Release:` version)
 ```
 
 When the backend changes, refresh the relevant `_context/api/*.md` via

@@ -9,7 +9,9 @@ repo's discipline below.
 ```
 claude-code-mobile-spine/                            ← marketplace repo root
 ├── README.md, LICENSE, .gitignore, CONTRIBUTING.md
-├── .github/{ISSUE_TEMPLATE/, PULL_REQUEST_TEMPLATE.md}
+├── .github/{ISSUE_TEMPLATE/, PULL_REQUEST_TEMPLATE.md, workflows/lint.yml}
+├── scripts/
+│   └── lint.py                                     ← static consistency lint (CI + `python3 scripts/lint.py`)
 ├── .claude-plugin/
 │   └── marketplace.json                            ← marketplace catalog
 └── plugins/
@@ -25,6 +27,7 @@ claude-code-mobile-spine/                            ← marketplace repo root
             └── init/                               ← skill: invoked as /mobile-spine:init
                 ├── SKILL.md                        ← skill behavior
                 ├── README.md                       ← contributor-facing skill notes
+                ├── smoke-test.sh                   ← scaffold smoke test (clean-temp-dir init)
                 └── templates/                      ← scaffold source (workspace data only)
                     ├── CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore
                     ├── .claude/{settings.json, commands/feat.md (thin stub)}
