@@ -493,7 +493,7 @@ Release: {pending — not yet released | per platform once shipped: "android {ap
 ```
 
 ## Checklist update policy
-pm-agent **only authors** `_tasks/{feature}.md`. The `_tasks` header (`Status:`, `Updated:`, API Spec, Issue numbers, `Design source:`, `Release:`) is pm-agent's responsibility throughout the feature lifecycle — initial authoring (Step 8, `Release: pending`) and on close-out (§Post-merge close-out Phase A.2 / B.2 sets the released version). The `## Completion checklist` checkboxes are different: ticking them after PR merge is the user's verification record, and **pm-agent never ticks them**.
+pm-agent **only authors** `_tasks/{feature}.md`. The `_tasks` header (`Status:`, `Updated:`, API Spec, Issue numbers, `Design source:`, `Release:`) is pm-agent's responsibility throughout the feature lifecycle — initial authoring (Step 8, `Release: pending`) and on close-out (§Post-merge close-out Phase A.2 / B.2 sets the released version). The `## Completion checklist` checkboxes are different: ticking them after PR merge is the user's verification record, and **no automated authoring layer — pm-agent, platform agents (android-agent / ios-agent), or any main Claude session that authors PR bodies / issue bodies / `_tasks` — ticks them**. They stay `- [ ]` from initial authoring through PR open and merge; only the user ticks, by hand, after end-to-end verification on the relevant platform. Pre-ticking "for completeness" is not a placeholder — once a box reads `- [x]`, downstream review (human or automated, including the §Cross-platform consistency review and any `code-review` / `pr-review-toolkit:review-pr` run) treats that line as background truth and stops auditing it, neutralizing the very gates meant to catch a false claim.
 
 ## Epic tasks (multi-phase features)
 
@@ -793,7 +793,7 @@ The close-out target is a `_tasks` file — for a single-phase feature `_tasks/{
    - `Updated:` bumped to today.
    - `Release:` stays `pending` — merging the PRs is not releasing the client. The released version is recorded only in Phase B, when the app is actually shipped.
 3. **Verify the two GitHub issues are closed.** `gh issue view {N1} --json state -q .state` + `gh issue view {N2} --json state -q .state` in parallel (§Tool-call batching) — each returns plain `OPEN` or `CLOSED` for direct comparison. PR `Closes #N` typically auto-closes the issue on merge; if either is still `OPEN`, **report to the user** with the issue number and ask whether to close. pm-agent does **NOT** close issues directly — closing is a user decision (some teams keep issues open for QA or rollback windows).
-4. **pm-agent does NOT tick the §Completion checklist boxes** — restating the existing §Checklist update policy at close-out time. The checklist is the user's verification record; ticking is their explicit sign-off.
+4. **No authoring layer — pm-agent, platform agents, or any main Claude session that authors PR bodies / issue bodies / `_tasks` — ticks the §Completion checklist boxes** at close-out, just as none did at PR-open. Restating §Checklist update policy. The checklist is the user's verification record; ticking is their explicit sign-off.
 5. **Release-gate branching**: if the feature carries a downstream release gate (e.g. `_tasks` header or feature spec references a backend ops deploy, a DB migration, an App Store / Play Store rollout), keep `_tasks` in the `"PRs merged — ... Pending {gate}"` state and stop here. Re-invoke pm-agent for Phase B once the gate clears.
 
 ### Phase B — release gate cleared (conditional)
