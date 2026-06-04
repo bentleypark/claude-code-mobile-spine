@@ -160,11 +160,13 @@ The phase-2 prompt must contain a phrase like "approved, proceed with commit + D
 
 #### PR body authoring discipline
 
-Two complementary rules apply when authoring the PR body at §Phase 2's `gh pr create --draft` step — and the same rules apply to anything you write into the GitHub issue body or `_tasks/{feature}.md` (though `_tasks` is normally pm-agent's surface, per §Checklist update policy):
+Three complementary rules apply when authoring the PR body at §Phase 2's `gh pr create --draft` step — and rules 1–2 also apply to anything you write into the GitHub issue body or `_tasks/{feature}.md` (though `_tasks` is normally pm-agent's surface, per §Checklist update policy):
 
 **1. No pre-ticked checkboxes — in any artifact you author.** Every checkbox stays `- [ ]` at authoring time, in the PR body, the issue body, and the `_tasks` `## Completion checklist`. Ticking is the user's explicit sign-off after end-to-end verification on the relevant platform (per pm-agent §Checklist update policy). Pre-ticking "for completeness" is not a placeholder: once a box reads `- [x]`, downstream review (the §Cross-platform consistency review, any `code-review` / `pr-review-toolkit:review-pr` run, human reviewers) treats that line as background truth and stops auditing it — neutralizing the very gates meant to catch a false claim.
 
 **2. Read the claim's target function before writing the claim.** When `## Behavior` names a function, gate, or handler — e.g. "X-level filter rejects Y", "Z handler dispatches W" — open *that exact function* with Read before writing the line, and reconcile the claim against its body and comments. Adjacent setters, registration calls, or "the policy looks set up nearby" are circumstantial evidence, not sufficient: the only valid evidence is the named function itself. Intra-code review tools cannot detect a description that lies about what the code does (the code may be self-consistent while the description is wrong) — so this discipline is yours at PR-body authoring time, not delegable to a later review pass.
+
+**3. `Closes` references travel into the PR body as plain text — never wrapped in backticks.** GitHub renders backticked text as inline code and skips closing-keyword parsing, so the referenced issue does not auto-close on PR merge. The backticked form appearing in §Phase 2's `gh pr create --draft` step's section list (e.g. `` `Closes myorg/myapp-ios#N` ``) is prompt-side readability — the body itself must receive the reference without backticks (`Closes myorg/myapp-ios#N`). Same rule for every GitHub closing keyword — any form of the `close` / `fix` / `resolve` families (`Close`/`Closes`/`Closed`, `Fix`/`Fixes`/`Fixed`, `Resolve`/`Resolves`/`Resolved`).
 
 ### Phase 3 (after PR open — iteration discipline propagation)
 
