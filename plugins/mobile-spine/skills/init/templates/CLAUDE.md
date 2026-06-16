@@ -53,6 +53,26 @@ The four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) ar
 
 Each agent reads `.claude/mobile-spine.config.yaml` at invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, etc.). Agent responsibilities, allowed paths, and pre-check procedures live in the plugin-side definition files. The table above is just an entry index.
 
+## Phase handoff discipline (main-session view)
+
+When the main session invokes a platform agent (`android-agent` / `ios-agent`) for the implement flow, three handoff gates belong to the **main session** — not the agent. The agent's own prompt carries the agent-side constraint at each gate; this section spells out the **main-session-side** behavior at the same gates, so abridged invocations and report-surfacing don't silently bypass the rule.
+
+**1. Phase 1 invocation prompt — include the git-baseline expectation.** The platform agent's §Phase 1 step 4 requires checking `git status --porcelain` (clean) and `git branch --show-current` (the integration branch — typically `develop`). The main session's Phase 1 prompt should explicitly remind the agent to run this baseline check first, so an abridged prompt ("phase 1 only — implement and report") does not silently skip step 4. On failure the agent stops and reports; the main session surfaces that report to the user and does not proceed without the user's resolution.
+
+**2. After receiving Phase 1's report — do not synthesize the Phase 2 trigger phrase.** The platform agent's §Phase 2 description requires the trigger phrase ("approved, proceed with commit + Draft PR") to originate from the user — even when the Phase 1 report shows no concerns (clean build / passing tests / trivial diff), and even when the user previously expressed a blanket pre-authorization ("approve all clean phases"). The main session's job after Phase 1 is to surface the report to the user and wait. Asking "shall we proceed to Phase 2?" is fine; synthesizing the trigger phrase from a clean report is prohibited.
+
+**3. After receiving Phase 2's "Draft PR opened" report — surface only spine-actionable next steps.** Once both platforms' Draft PRs exist (or the user confirms only one platform applies for this feature), the spine-actionable next-step ordering is:
+
+- (a) user-triggered pm-agent §Cross-platform consistency review — before any Ready/merge, while both Draft surfaces still exist (post-merge runs cannot reconstruct the pre-merge surfaces).
+- (b) Draft → Ready → reviewer approval → merge — user-driven.
+- (c) after both merges, user-triggered pm-agent §Post-merge close-out.
+
+Per-platform code review (`pr-review-toolkit:review-pr`, `code-review`, etc.) runs **inside each platform repo's own Claude session** where source access exists — the spine cannot run it (§Safety rules) and therefore does **not** list it as a spine-next-step. Mentioning it as "user's separate platform-session work" for signal is fine, but it is not in the spine's next-step ordering.
+
+Policy bodies for the rule details live next to the things they govern:
+- `agents/android-agent.md` / `agents/ios-agent.md` §Phase 1 step 4 (baseline check), §Phase 2 description (trigger ownership), §Phase 2 Final report (next-step ordering).
+- `agents/pm-agent.md` §Cross-platform consistency review (after both PRs exist), §Post-merge close-out.
+
 ## 4-case classification (pm-agent runs this on every call)
 
 | Case | Condition | Handling |

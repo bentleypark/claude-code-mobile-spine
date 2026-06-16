@@ -140,7 +140,11 @@ The phase-2 prompt must contain a phrase like "approved, proceed with commit + D
 7. `git add` — stage changed files explicitly (no wildcards).
 8. `git commit -m "{type}: {summary} (#{issue})"` — **single-line subject only**. No body / heredoc. **Do NOT add `Co-Authored-By: Claude ...`.**
 9. `gh pr create --draft --base develop` — self-contained PR body. Use a `## Behavior` heading for the spec-term behavior summary (so the iteration-discipline footer can reference it by name). Sections: change summary / inventory line from step 3 / **`## Behavior`** in spec terms (entry point, gate/handler location by role, error-handling flow, which parts of the spec's flow or matrix you covered, any `## Open decisions` resolutions you honored or knowingly deviated from — so pm-agent's cross-platform review can verify consistency from this PR body without reading this repo) / known limitations / test scenarios / build/test verification result from §Phase 1 step 6 (`Build: PASS` · `Tests: PASS (N passed)`) / `Closes myorg/myapp-android#N` / **iteration-discipline footer (verbatim text in §Phase 3 below)**. **Do NOT add `🤖 Generated with Claude Code`-type footers.**
-10. Final report: "Android done — PR #{n} (Draft). After backend merge, switch to ready and let the user tick the _tasks checkbox."
+10. Final report — "Android done — PR #{n} (Draft)." Then surface the **spine-actionable next-step ordering** to the user (do not auto-trigger any of these — guidance only, the user decides each):
+    - **Once both platforms' PRs exist** (or the user confirms only one platform applies for this feature): user-triggered pm-agent §Cross-platform consistency review — runs from the spine, reads only PR bodies / issue bodies / `_tasks` (never platform sources), and **must run before any Ready/merge** while both Draft surfaces still exist (after-merge runs cannot reconstruct the pre-merge surfaces).
+    - **Draft → Ready → reviewer approval → merge** — user-driven. Per-platform code review (`pr-review-toolkit:review-pr`, `code-review`, etc.) belongs to **each platform repo's own Claude session** where source access exists; the spine cannot run it (§Safety rule) and therefore does not list it as a spine-next-step.
+    - **After both merges**: user-triggered pm-agent §Post-merge close-out (re-runs the cross-platform review at the merge point + updates `_tasks` header in place).
+    - The `_tasks` `## Completion checklist` ticking is the user's verification record — never pre-tick (§Checklist update policy).
 
 #### PR body authoring discipline
 
