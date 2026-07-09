@@ -33,10 +33,14 @@ labels: enhancement
 - [ ] 4-case classification or pre-checks
 - [ ] Other (describe)
 
-## Plugin manifest impact
+## Delivery impact
 
-- [ ] Bumps `plugins/mobile-spine/.claude-plugin/plugin.json` version
-- [ ] No version bump needed (internal-only / tone / docs)
+<!-- The implementing PR does not bump `version` — that happens in a separate
+     release PR (CONTRIBUTING §Versioning). What matters here is whether this
+     change has to reach installed users at all. -->
+
+- [ ] Must reach installed users — include in the next release bump
+- [ ] Internal only (tone / docs / CI) — no release needed
 - [ ] Breaking — call out in the PR (skill name, plugin name, or marketplace name change)
 
 ## Open questions

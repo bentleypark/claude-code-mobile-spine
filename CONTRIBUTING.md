@@ -17,7 +17,7 @@ claude-code-mobile-spine/                            ← marketplace repo root
 └── plugins/
     └── mobile-spine/                               ← the plugin
         ├── .claude-plugin/
-        │   └── plugin.json                         ← plugin manifest (bump version on user-visible changes)
+        │   └── plugin.json                         ← plugin manifest (version = install cache key; bumped by a release PR, never in a feature PR)
         ├── agents/                                 ← plugin primitives — globally available subagents
         │   └── {api,pm,android,ios}-agent.md
         ├── commands/                               ← plugin primitives — globally available slash commands
@@ -81,9 +81,31 @@ If you change `plugins/mobile-spine/skills/init/SKILL.md`:
 
 ## Plugin manifest changes
 
-If you change anything users see (skill behavior, scaffold contents, install
-flow), bump `plugins/mobile-spine/.claude-plugin/plugin.json`'s `version`
-field so installed users get the update on `/plugin marketplace update`.
+### Versioning — bump on release, not in your PR
+
+`plugins/mobile-spine/.claude-plugin/plugin.json`'s `version` is not a changelog
+entry. It is the **cache key**. Installed plugins live at
+`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, and a version path is
+immutable: if the string doesn't change, `/plugin marketplace update` keeps serving
+the cached copy no matter how many commits landed. Merged work reaches users only
+when the version moves.
+
+That makes the bump a **release** action, not a per-PR one:
+
+- **Do not touch `version` in a feature PR.** Your PR changes behavior; it does not
+  decide what ships together. Every user-visible PR would otherwise bump the same
+  single line from the same base, so any two concurrent PRs conflict on a field
+  neither of them disagrees about — a conflict that carries no information and has to
+  be re-resolved whenever the merge order shifts.
+- **Bump once, in its own PR, after the set of changes you want to ship together has
+  merged.** That PR touches `version` and nothing else.
+
+The consequence is deliberate and worth stating plainly: **`main` can carry merged
+work that has not reached users yet.** Everything merged since the last version-bump
+commit is queued; the bump publishes it. Before announcing a change, bump. To see
+what is queued, diff `main` against the last commit that touched `version`.
+
+### Renames and restructures
 
 If you rename or restructure (skill name, plugin name, marketplace name),
 update both manifests and call out the breaking change in the PR.
