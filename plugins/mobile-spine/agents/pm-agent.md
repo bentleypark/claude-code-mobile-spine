@@ -287,6 +287,8 @@ Print the Android and iOS bodies as code blocks without creating issues. Confirm
 
 ### Live creation (after user yes)
 
+> **`## Completion criteria` in both bodies below: state outcomes, never a framework or client library.** Which UI framework the target screen uses, and which HTTP client the repo calls it with, are repo facts — settled by the platform agent when it reads its own repo, never assumed here (§_tasks authoring discipline, "The tech stack is a repo fact"). This paragraph is guidance for you; it is not part of either issue body.
+
 ```bash
 # Android
 gh issue create --repo myorg/myapp-android \
@@ -318,9 +320,9 @@ gh issue create --repo myorg/myapp-android \
 - `{code} {ENUM}` → "user message" + {follow-up action}
 
 ## Completion criteria
-- [ ] Compose UI (attach screens once a design source — Figma or HTML mockup — is available / state "no UI change" if applicable)
-- [ ] {platform SDK cleanup item — if any (e.g. remove Firebase Phone Auth)}
-- [ ] Retrofit integration for the new endpoints (call out non-standard responses such as raw types)
+- [ ] UI implemented per the design source (attach screens once a design source — Figma or HTML mockup — is available / state "no UI change" if applicable)
+- [ ] {platform SDK cleanup item — if any (e.g. remove a deprecated auth SDK)}
+- [ ] Networking integrated for the new endpoints (call out non-standard responses such as raw types)
 - [ ] Error code branching
 - [ ] Design parity check — spacing / typography / asset box + intrinsic size match the spec's measurements (do not substitute the screen's existing values)
 - [ ] Record codebase inventory in PR body (`Inventory: reuse X / extend Y / new Z / remove W`)
@@ -361,19 +363,19 @@ gh issue create --repo myorg/myapp-ios \
 ## Cautions
 - Client-side responsibilities (resend debounce / verification token absence / fallback policy)
 - Unmerged / test-server deployed / re-validate spec post-merge — context for kickoff
-- iOS-specific input hints (e.g. `.keyboardType(.numberPad)` + `.textContentType(.oneTimeCode)` for OTP)
+- iOS-specific input behavior, by role, not by API (e.g. for OTP: numeric keyboard + one-time-code autofill). The modifier / property that achieves it is the implementing agent's call — it differs by the screen's framework
 
 ## Flow
-1. user input → API call (URLSession async/await)
+1. user input → API call
 2. ... {steps}
 
 ## Error code mapping
 - `{code} {ENUM}` → "user message" + {follow-up action}
 
 ## Completion criteria
-- [ ] SwiftUI implementation (follow the per-repo CLAUDE.md Figma 5-step procedure if defined; mark "no UI change" passes through steps 1~3 if applicable)
-- [ ] {platform SDK cleanup item — if any (e.g. remove FirebaseAuth)}
-- [ ] URLSession async/await integration for the new endpoints (call out special-response decoding)
+- [ ] UI implemented per the design source (follow the per-repo CLAUDE.md Figma 5-step procedure if defined; mark "no UI change" passes through steps 1~3 if applicable)
+- [ ] {platform SDK cleanup item — if any (e.g. remove a deprecated auth SDK)}
+- [ ] Networking integrated for the new endpoints (call out special-response decoding)
 - [ ] Error code branching
 - [ ] Design parity check — spacing / typography / asset box + intrinsic size match the spec's measurements (do not substitute the screen's existing values)
 - [ ] Record codebase inventory in PR body (`Inventory: reuse X / extend Y / new Z / remove W`)
@@ -436,6 +438,7 @@ iOS Issue: myorg/myapp-ios#{N2}
 - **Edit in place when re-running** — when pm-agent is re-invoked on an existing feature (new info, a resolved decision), **edit the affected section** and bump the `Updated:` header line. Do **not** append `📌 update` / `갱신` / "as of {date}" blocks — the `Updated:` line plus `git diff` is the changelog. Append-only growth is exactly what makes these files unreadable.
 - **Platform-neutral by default** — `## Purpose`, `## Screens`, `## Components`, `## Measurements`, `## Endpoints`, `## Shared behavior`, `## Candidate assets`, `## Open decisions` are all platform-neutral. Measurements stay in **design units** — a `dp` / `pt` conversion is each platform agent's, and pre-converting it into `## Android` / `## iOS` both duplicates the value and makes a neutral section platform-specific (§Measurement altitude and units). Anything Android- or iOS-specific goes in its own `## Android` / `## iOS` subsection — never interleaved into neutral prose ("Android: X… iOS: Y…" mid-paragraph makes the doc unreadable for either platform agent).
 - **No platform-repo code locations** — pm-agent doesn't grep the platform repos, so it must not write their file paths, line numbers, class names, or method signatures anywhere in `_tasks`. Refer to things by role ("the app's global network-error handler", "the main-tab entry point"), not by symbol. Concrete code locations are the platform agent's job, recorded in that platform's issue / PR body — see §Codebase inventory split.
+- **The tech stack is a repo fact, not a spec fact.** Never name a UI framework, networking client, or platform API in `_tasks` or in an issue body — not in `## Completion criteria`, not in `## Flow`, not as an "input hint". You do not read the platform repos (§Codebase inventory split), so you cannot know what the target screen is built with; a screen can use an older framework than the repo's headline stack, and prescribing the wrong one turns a completion criterion into a demand to rewrite that screen. State the **outcome** ("UI implemented per the design source", "networking integrated for the new endpoints", "numeric keyboard + one-time-code autofill") and leave the construct to the agent that can see the code. This is the rule below, applied to the platform's own toolchain.
 - **Describe behavior, not its implementation form — especially the thing being changed or removed.** When the spec replaces or deprecates an existing behavior, name it by what it *does* **and its user-facing entry point** ("the signup nickname field's length + allowed-character limit"), never by one platform's implementation of it (a specific regex like `[a-zA-Z0-9]{1,7}`, a `Validator` / `Rule` class, a length constant). Implementation-framed wording is platform-biased: the other platform may enforce the same behavior a different way — a length check, an inline view-model guard — so a platform agent grepping for the implementation term finds only the matching form and **silently misses the equivalent one**, landing the change on the wrong (often legacy) screen and skipping the real one. State the behavior + entry point; let each platform agent find its own implementation. (This is the same anti-bias reason as "no symbols" above, applied to the *legacy* side of a change — the most common place implementation vocabulary sneaks in.)
 - **Cross-platform deltas go in the neutral sections, summarized** — when Android and iOS differ in a way that matters at the spec level (one already has a capability the other must build from scratch, one carries an extra constraint), state it as a one- or two-line summary in `## Shared behavior` or `## Completion checklist` — by role, no file paths (e.g. "Android already carries the prior GET snapshot into the final PATCH; iOS must add that seeding"). The detailed per-repo maps belong in each platform's GitHub issue / PR body; `## Android` / `## iOS` are for genuinely platform-specific *constraints*, not a place to mirror a code inventory.
 
