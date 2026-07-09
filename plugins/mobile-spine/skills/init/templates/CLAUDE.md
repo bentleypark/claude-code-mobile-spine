@@ -55,7 +55,36 @@ Each agent reads `.claude/mobile-spine.config.yaml` at invocation to resolve wor
 
 ## Phase handoff discipline (main-session view)
 
-When the main session invokes a platform agent (`android-agent` / `ios-agent`) for the implement flow, three handoff gates belong to the **main session** — not the agent. The agent's own prompt carries the agent-side constraint at each gate; this section spells out the **main-session-side** behavior at the same gates, so abridged invocations and report-surfacing don't silently bypass the rule.
+When the main session invokes a platform agent (`android-agent` / `ios-agent`) for the implement flow, one routing decision and three handoff gates belong to the **main session** — not the agent. The agent's own prompt carries the agent-side constraint at each gate; this section spells out the **main-session-side** behavior, so abridged invocations and report-surfacing don't silently bypass the rule.
+
+**0. Before invoking — decide whether to delegate at all.** A platform agent invocation is a fresh context. It has no memory of the previous one, so it must re-read the files it wrote last round before it can change a line. That cost is worth paying for judgment and worthless for typing.
+
+**Delegate** when any of these holds:
+
+- scope is open, or the repo must be inventoried to size the work
+- it is the feature's first implementation
+- a platform-convention call is needed — which UI framework the target screen actually uses, whether an existing component can be reused, what form an asset is in
+- both platforms can proceed in parallel
+
+**Implement inline** when *all* of these hold:
+
+- every value is already decided — measurements, colors, copy: nothing to look up
+- the change is small and mechanical
+- the target files were already read in this session
+- no convention judgment is required
+
+The main session **may** edit the platform repos: `.claude/settings.json` pre-approves `Edit`/`Write` on `../myapp-android/` and `../myapp-ios/` (only the backend is denied). §Subagent routing names who owns the implement *flow*; it is not a write prohibition, and §Safety rules' allowed-path rule constrains each **subagent**, not this session.
+
+**State the reason in the invocation.** Before handing work to a platform agent, print one line naming which of the four delegation criteria applies:
+
+```
+[main] Invoking android-agent — phase 1
+       delegating because: scope open, repo inventory needed
+```
+
+This is a self-check, not a gate — nothing blocks an invocation with a weak reason. Its value is that a round of pure value-substitution has **no** criterion to name, and discovering that while writing the line is cheaper than discovering it after the agent has spent a context window re-reading its own output. A series of small design-correction rounds, each one a fresh agent rebuilding context to apply a number the coordinator already had, is the shape this exists to catch.
+
+**Inline work carries its own obligation.** Declining to delegate means giving up the agent's phase-1 build/test gate. The main session then owes the same verification by hand: build the platform target, and review the diff, before reporting the change as done. Skipping delegation is not skipping verification.
 
 **1. Phase 1 invocation prompt — include the git-baseline expectation.** The platform agent's §Phase 1 step 4 requires checking `git status --porcelain` (clean) and `git branch --show-current` (the integration branch — typically `develop`). The main session's Phase 1 prompt should explicitly remind the agent to run this baseline check first, so an abridged prompt ("phase 1 only — implement and report") does not silently skip step 4. On failure the agent stops and reports; the main session surfaces that report to the user and does not proceed without the user's resolution.
 
@@ -67,7 +96,7 @@ When the main session invokes a platform agent (`android-agent` / `ios-agent`) f
 - (b) Draft → Ready → reviewer approval → merge — user-driven.
 - (c) after both merges, user-triggered pm-agent §Post-merge close-out.
 
-Per-platform code review (`pr-review-toolkit:review-pr`, `code-review`, etc.) runs **inside each platform repo's own Claude session** where source access exists — the spine cannot run it (§Safety rules) and therefore does **not** list it as a spine-next-step. Mentioning it as "user's separate platform-session work" for signal is fine, but it is not in the spine's next-step ordering.
+Per-platform code review (`pr-review-toolkit:review-pr`, `code-review`, etc.) runs **inside each platform repo's own Claude session**, and therefore is **not** a spine-next-step. The reason is project context, not file access: a review is only as good as the repo's own `CLAUDE.md`, its conventions, its build. The spine session has none of those loaded, so a review it ran would be uninformed — even though it can read the files (see item 0). Mentioning it as "user's separate platform-session work" for signal is fine, but it is not in the spine's next-step ordering.
 
 Policy bodies for the rule details live next to the things they govern:
 - `agents/android-agent.md` / `agents/ios-agent.md` §Phase 1 step 4 (baseline check), §Phase 2 description (trigger ownership), §Phase 2 Final report (next-step ordering).
