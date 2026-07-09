@@ -147,9 +147,12 @@ Both real sources are concrete UI artifacts, so both legitimately fill UI sectio
 > The official Dev Mode MCP is selection-based: it auto-detects the node
 > selected in Figma Desktop. Explicit nodeId is also accepted. Main tools:
 > `get_design_context` (reference code + screenshot + metadata, primary),
-> `get_metadata` (overview), `get_variable_defs` (color **and** typography /
-> spacing tokens — not colors alone), `get_screenshot` (rendered reference —
-> required, see step 5).
+> `get_metadata` (structure + each node's `x` / `y` / `width` / `height` — the
+> geometry source; it does **not** descend into `instance` nodes),
+> `get_variable_defs` (only the variables actually **bound** in the selection —
+> frequently a color or two, sometimes nothing; do not count on a spacing or
+> type scale existing here), `get_screenshot` (rendered reference — required,
+> see step 5).
 
 Do not analyze just a single node. Working from one node (e.g. only the "main"
 screen) and proceeding causes downstream rework when missing screens / states
@@ -167,7 +170,11 @@ Therefore at task kickoff:
    - **typography** — family, size, weight, line-height, letter-spacing
    - **assets & boxes** — each icon's / image's **intrinsic** dimensions *and* the box it renders into, stated separately whenever they differ; corner radius; stroke width
 
-   `get_variable_defs` yields the shared scales; the concrete per-node values come from `get_design_context`. Call `get_screenshot` per node as well: a rendered reference is what makes a measurement claim falsifiable. An assumption about how a platform handles density is not overturned by reasoning about it, only by measuring a rendered result.
+   Where each value actually comes from — the tools do not overlap the way their names suggest:
+   - **`get_metadata`** — every node's `x` / `y` / `width` / `height`. Gaps between siblings are the deltas. It stops at an `instance` boundary and lists no children, so a screen built from component instances is **under-reported** here.
+   - **`get_design_context`** — descends into instances, and is where layout (`gap`, padding, `size`) and full typography (family, size, weight, line-height, letter-spacing) appear. It returns them as reference code, not as a measurement table; read the values out of it.
+   - **`get_variable_defs`** — only what the designer bound to a variable. A file may expose a single color and no scales at all. Treat a shared spacing / type scale as something you **confirm exists**, not something you assume.
+   - **`get_screenshot`** — per node. A rendered reference is what makes a measurement claim falsifiable. An assumption about how a platform handles density is not overturned by reasoning about it, only by measuring a rendered result.
 6. **A measurement you cannot read is an open decision, not a default.** If a value the spec needs is absent from the design source, write it into `## Open decisions` flagged `measurement not in design source` — never leave it implicit and never let a platform agent's "preserve the existing value" instinct stand in for it. Same treatment as a design-derived endpoint (§Design-driven requirements) or an unsourced rationale (§_tasks authoring discipline).
 
 ### HTML branch — read every mockup file (no single-file analysis)
@@ -474,9 +481,9 @@ Release: {pending — not yet released | per platform once shipped: "android {ap
 {Design source none:}
 > Fill in after a design source is available — do not invent from text alone
 
-{Design source figma/html — the scales SHARED across this feature's components, in design units (§Measurement altitude and units). Only what this spec changes. A per-component value belongs in the `## Components` notes cell, not here. Omit a line that has no shared value:}
+{Design source figma/html — the scales SHARED across this feature's components, in design units (§Measurement altitude and units). Only what this spec changes. A per-component value belongs in the `## Components` notes cell, not here. A shared scale is something you confirmed, not something you assumed: many Figma files bind no spacing or type variables at all, and a mockup may use raw values. Omit a line that has no shared value — a single line reading `(no shared scale — per-component values only)` is the correct output when the design has none:}
 - Spacing scale: {e.g. 4 / 8 / 12 / 16 / 24}
-- Type scale: {role: size/weight/line-height — e.g. title: 20/600/1.4, body: 14/400/1.5}
+- Type scale: {role: size/weight/line-height/letter-spacing — e.g. body: 14/400/21/-0.32}
 - Radius / stroke: {shared values, if any}
 
 ## Endpoints
