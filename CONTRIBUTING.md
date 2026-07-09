@@ -105,6 +105,19 @@ work that has not reached users yet.** Everything merged since the last version-
 commit is queued; the bump publishes it. Before announcing a change, bump. To see
 what is queued, diff `main` against the last commit that touched `version`.
 
+**One release batches many PRs.** A release is not a PR that shipped — it is the set
+of PRs you decided to ship together. Its version reflects what changed for users, not
+how many PRs merged:
+
+- **Minor (`X.Y.0`)** — agent or command behavior changed, the `_tasks` format gained
+  or lost a section, a pre-check was added. This is the usual case; the release PR is
+  followed by a `vX.Y.0` tag. The repo's tags are its release history.
+- **Patch (`X.Y.Z`)** — a correction that does not change what an agent does.
+- **No release at all** — contributor docs, GitHub templates, CI. Nothing to deliver.
+
+Walking the patch number forward once per merged PR produces versions nobody installs
+and tags nobody cuts. Merge the batch, then move the version once.
+
 ### Renames and restructures
 
 If you rename or restructure (skill name, plugin name, marketplace name),
