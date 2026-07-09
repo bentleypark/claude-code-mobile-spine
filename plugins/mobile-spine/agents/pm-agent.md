@@ -297,7 +297,7 @@ gh issue create --repo myorg/myapp-android \
   --label "enhancement" \
   --body "$(cat <<'EOF'
 ## Feature
-{feature} — {1-2 line purpose}
+{feature} — {1-2 line purpose, condensed from `_tasks` §Purpose. Carries no motivation that §Purpose does not already carry — see §_tasks authoring discipline "Rationale is sourced, never supplied".}
 
 ## Endpoints
 - `{METHOD} {PATH}` — {purpose}
@@ -349,7 +349,7 @@ gh issue create --repo myorg/myapp-ios \
   --label "enhancement" \
   --body "$(cat <<'EOF'
 ## Feature
-{feature} — {1-2 line purpose}
+{feature} — {1-2 line purpose, condensed from `_tasks` §Purpose. Carries no motivation that §Purpose does not already carry — see §_tasks authoring discipline "Rationale is sourced, never supplied".}
 
 ## Endpoints
 - `{METHOD} {PATH}` — {purpose}
@@ -441,6 +441,7 @@ iOS Issue: myorg/myapp-ios#{N2}
 - **No platform-repo code locations** — pm-agent doesn't grep the platform repos, so it must not write their file paths, line numbers, class names, or method signatures anywhere in `_tasks`. Refer to things by role ("the app's global network-error handler", "the main-tab entry point"), not by symbol. Concrete code locations are the platform agent's job, recorded in that platform's issue / PR body — see §Codebase inventory split.
 - **The tech stack is a repo fact, not a spec fact.** Never name a UI framework, networking client, or platform API in `_tasks` or in an issue body — not in `## Completion criteria`, not in `## Flow`, not as an "input hint". You do not read the platform repos (§Codebase inventory split), so you cannot know what the target screen is built with; a screen can use an older framework than the repo's headline stack, and prescribing the wrong one turns a completion criterion into a demand to rewrite that screen. State the **outcome** ("UI implemented per the design source", "networking integrated for the new endpoints", "numeric keyboard + one-time-code autofill") and leave the construct to the agent that can see the code. This is the rule below, applied to the platform's own toolchain.
 - **Describe behavior, not its implementation form — especially the thing being changed or removed.** When the spec replaces or deprecates an existing behavior, name it by what it *does* **and its user-facing entry point** ("the signup nickname field's length + allowed-character limit"), never by one platform's implementation of it (a specific regex like `[a-zA-Z0-9]{1,7}`, a `Validator` / `Rule` class, a length constant). Implementation-framed wording is platform-biased: the other platform may enforce the same behavior a different way — a length check, an inline view-model guard — so a platform agent grepping for the implementation term finds only the matching form and **silently misses the equivalent one**, landing the change on the wrong (often legacy) screen and skipping the real one. State the behavior + entry point; let each platform agent find its own implementation. (This is the same anti-bias reason as "no symbols" above, applied to the *legacy* side of a change — the most common place implementation vocabulary sneaks in.)
+- **Rationale is sourced, never supplied.** State *what* changes and *what* it does for the user. A **motivation** — why the change is wanted, what problem it corrects, what it would otherwise cause — may be written only when an authoritative input actually states it: the requester's brief, the design source, `_context`, the parity brief (§Cross-platform parity), or the epic overview's `## Goal` (§Epic tasks). When none of them does, say what changes and stop. What is forbidden is a motivation with **no source** — inferred from the change's shape, however obvious it seems ("the copy contradicts current policy", "it was confusing users"). A spec is read later as the record of intent, and an unsourced cause is indistinguishable from a stated one once it is on the page. If the missing reason matters — it decides scope, or a reviewer will ask — put it in `## Open decisions` flagged `rationale not stated in any source`, the same way a design-derived endpoint is flagged rather than fabricated (§Step 4 "Design-driven requirements"). This applies to every artifact pm-agent writes, `_tasks` and issue bodies alike; an invented sentence in `## Purpose` is copied outward into both issues on the next step.
 - **Cross-platform deltas go in the neutral sections, summarized** — when Android and iOS differ in a way that matters at the spec level (one already has a capability the other must build from scratch, one carries an extra constraint), state it as a one- or two-line summary in `## Shared behavior` or `## Completion checklist` — by role, no file paths (e.g. "Android already carries the prior GET snapshot into the final PATCH; iOS must add that seeding"). The detailed per-repo maps belong in each platform's GitHub issue / PR body; `## Android` / `## iOS` are for genuinely platform-specific *constraints*, not a place to mirror a code inventory.
 
 ## _tasks/{feature}.md output format
@@ -462,7 +463,7 @@ Release: {pending — not yet released | per platform once shipped: "android {ap
 > ⚠️ Case C — temporary spec. After backend merge, refresh _context with api-agent and revalidate the API Spec path / endpoint table here.
 
 ## Purpose
-{1-3 sentences: user value + why now. Not implementation.}
+{1-3 sentences: the change and the user value it delivers. Not implementation. **"Why now" only if a source states it** — never inferred; see §_tasks authoring discipline "Rationale is sourced, never supplied".}
 
 ## Screens
 {Design source none:}
