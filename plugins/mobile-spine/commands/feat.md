@@ -1,12 +1,12 @@
 ---
-description: Kick off _tasks creation for a new feature (4-item interview before invoking pm-agent; an epic-sized requirement routes to phased decomposition, a feature already built on one platform routes to cross-platform parity)
+description: Kick off _tasks creation for a new feature (4-item interview before invoking pm-agent; an epic-sized requirement routes to phased decomposition, a feature already built on one platform routes to cross-platform parity, a change that touches no endpoint routes to client-only)
 argument-hint: [optional short note — e.g. "push notification settings - alarm domain"]
 allowed-tools: [Read, AskUserQuestion, Agent]
 ---
 
 # /mobile-spine:feat — New feature kickoff interview
 
-Run a 4-item interview, then invoke pm-agent automatically. The main session asks the user the 4 questions in order, collects answers, and constructs the pm-agent prompt. Two early checks can divert before the case interview: a requirement too large for one PR cycle (Item 1b — epic) routes to pm-agent's phased decomposition; a feature already built on one platform but not the other (Item 1c — parity) routes to the cross-platform parity flow. Both skip Items 2–4 — parity skips them entirely (it's a near-zero-input path: the reference implementation is the spec), and epic defers them to per-phase authoring.
+Run a 4-item interview, then invoke pm-agent automatically. The main session asks the user the 4 questions in order, collects answers, and constructs the pm-agent prompt. Three early checks can divert before the case interview: a requirement too large for one PR cycle (Item 1b — epic) routes to pm-agent's phased decomposition; a feature already built on one platform but not the other (Item 1c — parity) routes to the cross-platform parity flow; a change that alters no backend endpoint (Item 1d — client-only) skips the spec pre-checks entirely. All three skip Items 2–4 — parity skips them entirely (it's a near-zero-input path: the reference implementation is the spec), epic defers them to per-phase authoring, and client-only settles them by classification (no spec to source; the existing screen is the design).
 
 The workspace's `/feat` is a thin stub that delegates here — both invocations end up running this same command.
 
@@ -37,7 +37,12 @@ Then **auto-detect the design source from disk**: if `_context/design/{feature}/
 
 Carry these forward; an item whose value is already known is **not** re-asked. After the pre-pass, if more than one independent item still needs input, ask them together in a **single `AskUserQuestion`** (up to 4 questions) instead of one prompt per turn. Keep ordering only for a real dependency — Item 3 (spec source) depends on the case from Item 2, so those stay sequential; Item 4 (design source) is independent and can share a screen with Item 2.
 
-**Empty-analysis guard (evaluated here, not only in Item 3).** Skipping items must not bypass the "nothing to analyze" check. On the *collected* values — regardless of which item supplied them — if the spec source is "none — derive from design" (or absent) **and** there is no design source (none named in the note, none auto-detected on disk), steer to **case D** (defer): a design-only run with no design has nothing to inventory. Do this before invoking pm-agent. (Because both Item 3 and Item 4 can be skipped by the pre-pass, this gate can't live inside Item 3 alone — that's why it's stated here.)
+**Empty-analysis guard (evaluated here, not only in Item 3).** Skipping items must not bypass the "nothing to analyze" check. On the *collected* values — regardless of which item supplied them — if the spec source is "none — derive from design" (or absent) **and** there is no design source (none named in the note, none auto-detected on disk), there may be nothing to inventory. Two outcomes, and the distinction is **whether the request modifies a screen that already exists**:
+
+- **An existing screen is being changed** → **client-only** (Item 1d). The analysis target is the shipped screen, not a design artifact. Do not defer: a copy deletion or a hidden element is the simplest work there is, and it satisfies "no spec source, no design source" by nature.
+- **A new screen with neither spec nor design** → **case D** (defer). Nothing exists to inventory, on any side.
+
+Decide this before invoking pm-agent. (Because both Item 3 and Item 4 can be skipped by the pre-pass, this gate can't live inside Item 3 alone — that's why it's stated here.) The old form of this guard steered *both* outcomes to case D, which deferred exactly the changes that needed no deferring.
 
 ### Item 1: feature name + domain key
 
@@ -112,6 +117,27 @@ If the requirement is **already implemented on one platform but not the other** 
      Capture the reconciliation inline (transient). This turns the reference's *candidate* scope into *this* repo's *actual* scope.
   5. **Invoke pm-agent** using the §"pm-agent prompt construction — cross-platform parity" template below, pasting **both** the brief (step 3) and the scope reconciliation (step 4) inline. Mark the case as auto-detected/unconfirmed so pm-agent knows to re-validate.
 
+### Item 1d: client-only check
+
+The last early divert before the case interview. Item 2's auto-detection keys on `_context/api/{domain}.md` and the endpoint list, so a change that touches **no endpoint at all** gets mislabelled there — most often as case A, which then drags in the staleness and scope pre-checks that case A implies. Catch it first.
+
+**Infer, don't interrogate** — the same discipline as Item 1c. Signals in the note: an existing screen is named; the verb is *remove* / *hide* / *delete* / *rename* / *change the copy*; the request explicitly says no API change. Any of these, plus no new endpoint mentioned, means **client-only**: the change calls no backend endpoint, or leaves the set of called endpoints unchanged.
+
+- Clear signals → classify as client-only, say so in the pre-invocation line, and **skip Items 2–4**. Case, spec source and design source are all settled by the classification itself: there is no spec to source, and an existing screen is the design.
+- Genuinely ambiguous (the note could imply a new endpoint) → **one** `AskUserQuestion`:
+
+  ```
+  Question: "Does this change alter which backend endpoints the screen calls?"
+  Header: "API impact"
+  Options:
+  - "No — client-only" — no endpoint added, removed, or swapped
+  - "Yes — an endpoint changes" — continue the normal case interview
+  ```
+
+- Otherwise → continue to Item 2.
+
+Still collect the domain key from Item 1: pm-agent records it for classification and search, but does **not** branch the case on whether `_context/api/{domain}.md` exists (pm-agent.md §client-only handling).
+
 ### Item 2: case auto-detection + user confirmation
 
 Once the domain key is set, the main session auto-detects (before invoking pm-agent):
@@ -134,7 +160,7 @@ Report the auto-detection result and confirm via `AskUserQuestion`:
 Options: ["Correct", "Specify a different case"]
 ```
 
-If "Specify a different case" is chosen, ask the user which of A/B/C/D applies.
+If "Specify a different case" is chosen, ask the user which of A/B/C/D/client-only applies. `client-only` reaching this point means Item 1d's inference missed — take it and skip Items 3–4, exactly as Item 1d would have.
 
 ### Item 3: spec source (case B/C only — skip for A/D)
 
@@ -232,6 +258,33 @@ next-phase invocations.
 - Follow §_tasks authoring discipline for every phase file and 00-overview.md.
 ```
 
+## pm-agent prompt construction — client-only
+
+When Item 1d routed here, invoke pm-agent (Agent tool, `subagent_type`: `pm-agent`) with this template. Items 2–4 supplied nothing, and nothing is missing:
+
+```
+## Target
+- Feature: {item 1}
+- Domain: {extracted from item 1 — for classification and search only}
+- Pre-classified: client-only
+
+## Context
+- The change alters no backend endpoint, or leaves the set of called endpoints unchanged: {one line — what makes it client-only}
+- Spec source: none consulted. Do not open `_context/api/{domain}.md`; do not run the staleness or scope pre-checks.
+- Design source: the shipped screen. There is no new design artifact, and none is needed.
+
+## Procedure
+Run pm-agent.md §client-only handling: skip Steps 2–3, run Step 6 (the implementation-status
+confirm — this screen already ships, so it may already be done on both platforms), then
+Steps 5/7/8/9 as normal.
+
+## Policy reminders
+- Header: `Case: client-only` and `API Spec: not consulted — client-only (domain: {domain})`.
+  Name the domain; do not link its spec.
+- No api-agent follow-up — nothing about the backend changed.
+- §_tasks authoring discipline applies unchanged.
+```
+
 ## pm-agent prompt construction — cross-platform parity
 
 When the parity check (Item 1c) routed here, invoke pm-agent (Agent tool, `subagent_type`: `pm-agent`) with this template — the brief (Item 1c step 3) and the scope reconciliation (Item 1c step 4) are pasted inline:
@@ -240,7 +293,7 @@ When the parity check (Item 1c) routed here, invoke pm-agent (Agent tool, `subag
 ## Target
 - Feature: {item 1}
 - Domain: {inferred from the note / an _context/api match — or "derive from the brief" if not obvious; not asked}
-- Pre-classified: case {auto-detected A/B/C — UNCONFIRMED, re-validate against the brief's endpoints; never D}
+- Pre-classified: case {auto-detected A/B/C, or client-only if the reference calls no endpoints — UNCONFIRMED, re-validate against the brief's endpoints; never D}
 - Cross-platform parity: reference = {reference platform}, lagging = {lagging platform}
 
 ## Parity brief (reference = {reference platform}, as-built — transient spec source)
@@ -282,6 +335,12 @@ For the epic-decomposition path, instead print:
 
 ```
 [/feat] Invoking pm-agent — epic decomposition for {epic}
+```
+
+For the client-only path (Item 1d), print the reason it was classified that way — an inferred divert should be visible, not silent:
+
+```
+[/feat] Invoking pm-agent — client-only ({inferred: existing screen, no endpoint change | confirmed by user}), domain {domain}
 ```
 
 For the cross-platform parity path, print one line before extraction, one before the scope cross-check, and one before pm-agent:

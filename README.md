@@ -2,7 +2,7 @@
 
 A **Claude Code** scaffold for mobile teams whose Android, iOS, and Backend
 live in **separate repos**. A lightweight meta-repo sits next to the three
-platform repos and coordinates four specialized subagents, a 4-case
+platform repos and coordinates four specialized subagents, a case
 classification flow, three pre-checks, and a `/feat` slash-command interview
 that drives the whole pipeline end to end.
 
@@ -19,10 +19,11 @@ Install the bundled Claude Code plugin and run `/mobile-spine:init`: a
   - `android-agent` — implements in `../myapp-android/`; also a read-only **parity mode** (reverse-extraction + scope cross-check) when porting a feature from the other platform
   - `ios-agent` — implements in `../myapp-ios/`; same read-only parity mode
 - **Isolation model** — `settings.json` `deny` should block writes to the backend repo (verify in week 0 — see SETUP.md §9 Item 3); each agent's `description` + per-agent allowed-paths in the prompt body keep android↔ios mutually isolated (prompt-level — relies on the model's cooperation, not a hard technical block).
-- **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) → pm-agent prompt auto-built. A rich one-line `/feat <note>` is parsed up front (one-shot), so only the still-unanswered items are asked. Spec source accepts "none — derive from design" for a design-only (no requirements doc) feature. Two early checks divert before the case interview: an epic-sized requirement routes to phased decomposition, and a feature **already built on one platform but not the other** routes to cross-platform parity.
+- **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) → pm-agent prompt auto-built. A rich one-line `/feat <note>` is parsed up front (one-shot), so only the still-unanswered items are asked. Spec source accepts "none — derive from design" for a design-only (no requirements doc) feature. Three early checks divert before the case interview: an epic-sized requirement routes to phased decomposition, a feature **already built on one platform but not the other** routes to cross-platform parity, and a change that **alters no backend endpoint** routes to client-only.
 - **Cross-platform parity flow** — when a feature already shipped on one platform (often outside the spine), the reference platform agent reverse-extracts a platform-neutral, spec-term brief; pm-agent authors `_tasks` from it and opens a GitHub issue for the **lagging platform only**. pm-agent still never reads platform source — the brief comes from the platform agent.
-- **4-case classification** for every new feature:
+- **Case classification** for every new feature:
   - A: existing endpoint / B: new endpoint in existing domain / C: new domain / D: backend not built
+  - client-only: the change alters no endpoint (a copy edit, hiding an existing element) — the spec pre-checks are skipped rather than argued away
 - **Three pre-checks** before pm-agent writes anything:
   - 1) staleness (`_context/api/{domain}.md` Updated vs backend HEAD)
   - 2) scope vs context comparison (catches deprecated endpoints still in spec)

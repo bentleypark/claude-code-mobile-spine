@@ -30,7 +30,7 @@ labels: enhancement
 - [ ] `/mobile-spine:init` skill
 - [ ] Plugin manifest / marketplace.json
 - [ ] Scaffold templates (templates/CLAUDE.md / templates/SETUP.md / etc.)
-- [ ] 4-case classification or pre-checks
+- [ ] Case classification or pre-checks
 - [ ] Other (describe)
 
 ## Plugin manifest impact
