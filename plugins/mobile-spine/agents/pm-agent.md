@@ -130,7 +130,7 @@ Do not proceed with arbitrary defaults. Wait for the user's answer before writin
 
 **Applies to: every case being processed (A/B/C).**
 
-UI sections (`## Screens`, `## Components`) are filled from a **design source**. There are three, branched on what the user supplied (the `/feat` interview's "Design source" item, or the invocation prompt):
+UI sections (`## Screens`, `## Components`, `## Measurements`) are filled from a **design source**. There are three, branched on what the user supplied (the `/feat` interview's "Design source" item, or the invocation prompt):
 
 | Design source | Condition | Handling |
 |---|---|---|
@@ -147,7 +147,12 @@ Both real sources are concrete UI artifacts, so both legitimately fill UI sectio
 > The official Dev Mode MCP is selection-based: it auto-detects the node
 > selected in Figma Desktop. Explicit nodeId is also accepted. Main tools:
 > `get_design_context` (reference code + screenshot + metadata, primary),
-> `get_metadata` (overview), `get_variable_defs` (tokens), `get_screenshot`.
+> `get_metadata` (structure + each node's `x` / `y` / `width` / `height` — the
+> geometry source; it does **not** descend into `instance` nodes),
+> `get_variable_defs` (only the variables actually **bound** in the selection —
+> frequently a color or two, sometimes nothing; do not count on a spacing or
+> type scale existing here), `get_screenshot` (rendered reference — required,
+> see step 5).
 
 Do not analyze just a single node. Working from one node (e.g. only the "main"
 screen) and proceeding causes downstream rework when missing screens / states
@@ -160,6 +165,17 @@ Therefore at task kickoff:
 2. Call `get_metadata` with no nodeId (= use current selection) → returns metadata for every selected top-level node (multi-selection supported).
 3. With the node IDs in hand, fan out `get_design_context` per node in parallel (this tool is single-node only, N calls).
 4. If anything still feels missing (especially empty / loading / error states), ping the user once: "is there a separate node, or should this be a code-level TODO?"
+5. **Measure — the design's numbers, not just its colors.** Colors and structure alone leave every placement value blank, and a blank is filled downstream by each platform agent guessing from *its own* repo's current values — two repos, two different guesses, both potentially wrong against the design. Capture, at **the altitude of what this spec changes** (not every value on the screen — see §Measurement altitude and units):
+   - **spacing** — padding, gaps between elements, and any margin the layout depends on
+   - **typography** — family, size, weight, line-height, letter-spacing
+   - **assets & boxes** — each icon's / image's **intrinsic** dimensions *and* the box it renders into, stated separately whenever they differ; corner radius; stroke width
+
+   Where each value actually comes from — the tools do not overlap the way their names suggest:
+   - **`get_metadata`** — every node's `x` / `y` / `width` / `height`. Gaps between siblings are the deltas. It stops at an `instance` boundary and lists no children, so a screen built from component instances is **under-reported** here.
+   - **`get_design_context`** — descends into instances, and is where layout (`gap`, padding, `size`) and full typography (family, size, weight, line-height, letter-spacing) appear. It returns them as reference code, not as a measurement table; read the values out of it.
+   - **`get_variable_defs`** — only what the designer bound to a variable. A file may expose a single color and no scales at all. Treat a shared spacing / type scale as something you **confirm exists**, not something you assume.
+   - **`get_screenshot`** — per node. A rendered reference is what makes a measurement claim falsifiable. An assumption about how a platform handles density is not overturned by reasoning about it, only by measuring a rendered result.
+6. **A measurement you cannot read is an open decision, not a default.** If a value the spec needs is absent from the design source, write it into `## Open decisions` flagged `measurement not in design source` — never leave it implicit and never let a platform agent's "preserve the existing value" instinct stand in for it. Same treatment as a design-derived endpoint (§Design-driven requirements) or an unsourced rationale (§_tasks authoring discipline).
 
 ### HTML branch — read every mockup file (no single-file analysis)
 
@@ -170,12 +186,21 @@ The same no-single-screen discipline applies: an HTML mockup set is the equivale
 3. Extract **design tokens** from CSS `:root` custom properties (`--color-*`, `--font-*`, spacing) — the analogue of `get_variable_defs`. Inline styles count too.
 4. Identify **components** from repeated DOM structures / reused class blocks (BEM-style blocks, web components, repeated card/list-item markup) — the analogue of per-node component extraction.
 5. Check for missing **states** (empty / loading / error / success-failure). These may be separate files or toggled by a CSS class / `hidden` attribute / `data-state`. If a state seems absent, ping the user once: "is there a separate mockup for it, or should this be a code-level TODO?" — same gate as the Figma branch's step 4.
+6. **Measure**, to the same coverage as the Figma branch's step 5 — spacing, typography (incl. line-height and letter-spacing), asset intrinsic dimensions vs. their rendered box, radius, stroke. The `:root` scales from step 3 are the shared values; per-element rules and `width` / `height` attributes carry the specific ones. An unreadable value is an open decision, exactly as in the Figma branch's step 6.
 
-> No headless rendering or screenshotting — the HTML/CSS **source** is the spec. Do not execute JS; treat the markup + stylesheets as static. (Asset/screenshot generation is out of scope, like Figma's `get_screenshot` is optional.)
+> No headless rendering or screenshotting — the HTML/CSS **source** is the spec. Do not execute JS; treat the markup + stylesheets as static. (Asset generation is out of scope. There is no `get_screenshot` equivalent to require here: the Figma branch needs a rendered reference because a node's numbers are not readable as text, whereas the mockup's markup and stylesheets already *are* that reference.)
+
+### Measurement altitude and units
+
+**Altitude — measure what the spec changes.** A component this feature touches gets its numbers; the rest of the screen does not. Values nobody is changing give a platform agent nothing to guess about, and an exhaustive inventory eats the `_tasks` length budget (§_tasks authoring discipline) for lines no one reads.
+
+**Units — the design's own, converted by each platform.** Write the raw design value (`30×30`, `radius 8`, `20/600/1.4`); each platform agent converts to `dp` / `pt` at implementation. `_tasks` stays platform-neutral, and the value exists in exactly one place. Do **not** pre-convert into `## Android` / `## iOS`.
+
+**Always separate an asset's intrinsic size from the box it renders into.** When they differ, state both — `box 30×30, asset intrinsic 24×24`. Collapsing them is the single most common way a measurement spec goes wrong: the reader assumes the platform scales one to the other, and each platform assumes differently.
 
 ### UI sections + the `none` fallback
 
-UI sections = the `## Screens` list and the `## Components` table (plus any per-screen color/typography/layout notes within them).
+UI sections = the `## Screens` list, the `## Components` table, and `## Measurements` (plus any per-screen color/typography/layout notes within them).
 
 When the design source is **`none`**:
 - Each UI section is a single placeholder line:
@@ -297,7 +322,7 @@ gh issue create --repo myorg/myapp-android \
 - [ ] {platform SDK cleanup item — if any (e.g. remove Firebase Phone Auth)}
 - [ ] Retrofit integration for the new endpoints (call out non-standard responses such as raw types)
 - [ ] Error code branching
-- [ ] Design parity check
+- [ ] Design parity check — spacing / typography / asset box + intrinsic size match the spec's measurements (do not substitute the screen's existing values)
 - [ ] Record codebase inventory in PR body (`Inventory: reuse X / extend Y / new Z / remove W`)
 
 ## Iteration discipline (read on every push to the PR)
@@ -350,7 +375,7 @@ gh issue create --repo myorg/myapp-ios \
 - [ ] {platform SDK cleanup item — if any (e.g. remove FirebaseAuth)}
 - [ ] URLSession async/await integration for the new endpoints (call out special-response decoding)
 - [ ] Error code branching
-- [ ] Design parity check
+- [ ] Design parity check — spacing / typography / asset box + intrinsic size match the spec's measurements (do not substitute the screen's existing values)
 - [ ] Record codebase inventory in PR body (`Inventory: reuse X / extend Y / new Z / remove W`)
 
 ## Iteration discipline (read on every push to the PR)
@@ -384,7 +409,7 @@ iOS Issue: myorg/myapp-ios#{N2}
   - Screen overview → `get_metadata`
   - Per-screen UI/component spec → `get_design_context` (primary)
   - Color/typography tokens → `get_variable_defs`
-  - Asset export → `get_screenshot` (save to `_context/design/{feature}/` if needed)
+  - Rendered reference → `get_screenshot` per node (**required** — the measurement step's evidence, §Step 4 Figma branch step 5). Also the asset-export path; save to `_context/design/{feature}/` if needed
 - **HTML mockup**: a path to `*.html` / `*.css` files (recommended under `_context/design/{feature}/`; any non-platform-repo path is readable — §Safety rule). No MCP — read with `Read`/`Glob`/`Grep`. The Figma→HTML equivalents:
   - Screen overview → `Glob` the mockup dir; each file / top-level route ≈ one node
   - Per-screen UI/component spec → `Read` the HTML + its CSS
@@ -409,7 +434,7 @@ iOS Issue: myorg/myapp-ios#{N2}
 - **Length budget** — a finished `_tasks` fits in roughly two screens (~150 lines / ~1500 words). If it's longer, the spec isn't decided yet: resolve the items in `## Open decisions`, don't write more prose. A 15k-word `_tasks` is a symptom, not thoroughness.
 - **State each fact once** — if the same constraint applies in several places, state it in the most relevant section and reference it elsewhere by `§<section name>`. Never re-explain the same thing in three sections.
 - **Edit in place when re-running** — when pm-agent is re-invoked on an existing feature (new info, a resolved decision), **edit the affected section** and bump the `Updated:` header line. Do **not** append `📌 update` / `갱신` / "as of {date}" blocks — the `Updated:` line plus `git diff` is the changelog. Append-only growth is exactly what makes these files unreadable.
-- **Platform-neutral by default** — `## Purpose`, `## Screens`, `## Components`, `## Endpoints`, `## Shared behavior`, `## Candidate assets`, `## Open decisions` are all platform-neutral. Anything Android- or iOS-specific goes in its own `## Android` / `## iOS` subsection — never interleaved into neutral prose ("Android: X… iOS: Y…" mid-paragraph makes the doc unreadable for either platform agent).
+- **Platform-neutral by default** — `## Purpose`, `## Screens`, `## Components`, `## Measurements`, `## Endpoints`, `## Shared behavior`, `## Candidate assets`, `## Open decisions` are all platform-neutral. Measurements stay in **design units** — a `dp` / `pt` conversion is each platform agent's, and pre-converting it into `## Android` / `## iOS` both duplicates the value and makes a neutral section platform-specific (§Measurement altitude and units). Anything Android- or iOS-specific goes in its own `## Android` / `## iOS` subsection — never interleaved into neutral prose ("Android: X… iOS: Y…" mid-paragraph makes the doc unreadable for either platform agent).
 - **No platform-repo code locations** — pm-agent doesn't grep the platform repos, so it must not write their file paths, line numbers, class names, or method signatures anywhere in `_tasks`. Refer to things by role ("the app's global network-error handler", "the main-tab entry point"), not by symbol. Concrete code locations are the platform agent's job, recorded in that platform's issue / PR body — see §Codebase inventory split.
 - **Describe behavior, not its implementation form — especially the thing being changed or removed.** When the spec replaces or deprecates an existing behavior, name it by what it *does* **and its user-facing entry point** ("the signup nickname field's length + allowed-character limit"), never by one platform's implementation of it (a specific regex like `[a-zA-Z0-9]{1,7}`, a `Validator` / `Rule` class, a length constant). Implementation-framed wording is platform-biased: the other platform may enforce the same behavior a different way — a length check, an inline view-model guard — so a platform agent grepping for the implementation term finds only the matching form and **silently misses the equivalent one**, landing the change on the wrong (often legacy) screen and skipping the real one. State the behavior + entry point; let each platform agent find its own implementation. (This is the same anti-bias reason as "no symbols" above, applied to the *legacy* side of a change — the most common place implementation vocabulary sneaks in.)
 - **Cross-platform deltas go in the neutral sections, summarized** — when Android and iOS differ in a way that matters at the spec level (one already has a capability the other must build from scratch, one carries an extra constraint), state it as a one- or two-line summary in `## Shared behavior` or `## Completion checklist` — by role, no file paths (e.g. "Android already carries the prior GET snapshot into the final PATCH; iOS must add that seeding"). The detailed per-repo maps belong in each platform's GitHub issue / PR body; `## Android` / `## iOS` are for genuinely platform-specific *constraints*, not a place to mirror a code inventory.
@@ -447,10 +472,19 @@ Release: {pending — not yet released | per platform once shipped: "android {ap
 {Design source none:}
 > Fill in after a design source is available — do not invent from text alone
 
-{Design source figma/html — Source ref = Figma node ID or HTML file#selector:}
+{Design source figma/html — Source ref = Figma node ID or HTML file#selector. The notes cell carries this component's OWN measurements (box, asset intrinsic size when it differs, radius, stroke) in design units; shared scales live in `## Measurements`, referenced not repeated:}
 | Component | Source ref | reuse / new | Size / color / state notes |
 |---|---|---|---|
 | ... | ... | ... | ... |
+
+## Measurements
+{Design source none:}
+> Fill in after a design source is available — do not invent from text alone
+
+{Design source figma/html — the scales SHARED across this feature's components, in design units (§Measurement altitude and units). Only what this spec changes. A per-component value belongs in the `## Components` notes cell, not here. A shared scale is something you confirmed, not something you assumed: many Figma files bind no spacing or type variables at all, and a mockup may use raw values. Omit a line that has no shared value — a single line reading `(no shared scale — per-component values only)` is the correct output when the design has none:}
+- Spacing scale: {e.g. 4 / 8 / 12 / 16 / 24}
+- Type scale: {role: size/weight/line-height/letter-spacing — e.g. body: 14/400/21/-0.32}
+- Radius / stroke: {shared values, if any}
 
 ## Endpoints
 - Domain spec: {case A/B: `_context/api/{domain}.md` | case C: {external source, temporary} | design-only: `temporary — derived from design` (no canonical endpoints yet — UI-implied endpoints live in `## Open decisions`, not in the in-scope list below)}
@@ -486,7 +520,7 @@ Release: {pending — not yet released | per platform once shipped: "android {ap
 ## Completion checklist
 - [ ] Android implementation (myorg/myapp-android#{N1})
 - [ ] iOS implementation (myorg/myapp-ios#{N2})
-- [ ] Design parity check (against the design source — Figma node or HTML mockup; after one is available)
+- [ ] Design parity check (against the design source — Figma node or HTML mockup; after one is available). Covers `## Measurements` + each component's notes cell, not colors alone.
 - [ ] API integration verified
 - [ ] Cross-platform behavior consistency — pm-agent final review (document-level: PR bodies + issue bodies + `_tasks`, no platform-source reading; see §Cross-platform consistency review)
 - [ ] {case C only} Refresh _context after backend merge + replace API Spec path here
