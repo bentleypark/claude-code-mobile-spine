@@ -260,6 +260,7 @@ Authoring rules:
 - Only category keywords derived from the design-source inventory (Figma or HTML — e.g. OTP 6-digit input, countdown timer, email-format validator, toast, raw-color → token mapping candidates).
 - **Never write platform-repo file paths, line numbers, class names, or method signatures** — pm-agent doesn't grep the platform repos, so anything that specific is either hallucinated or copied from a platform agent's transient inventory (which goes stale immediately and bloats this file). Categories only.
 - **Anchor keywords on behavior + entry point, and span implementation forms.** A behavior can be implemented several ways across — and within — platforms: a dedicated validator/rule, a regex, a length constant, an inline check. A keyword tied to one form makes the platform agent's grep miss the equivalent behavior implemented differently (and land on a legacy screen). Cast the net wide and name the entry point. e.g. for a nickname-rule change: `signup nickname input field` · `nickname length limit (maxLength / count)` · `nickname charset rule (regex / validator)` — **not** just "the nickname regex".
+- **Never classify anything as reuse vs new.** Not in `## Screens`, not in `## Components`, not anywhere else in `_tasks`. Whether a component already exists is a fact about a *codebase*, and the only evidence you have is a *design*. The two do not coincide: a component that is familiar in the design system — an instance of it sits on the frame you inventoried — may be absent from both repos, and marking it `reuse` sizes the issue as a small edit when it is a build. The word makes the guess invisible, because each platform agent uses that same word for a grounded finding about its own repo. Say what the design contains; let the agent that greps say what exists.
 - pm-agent has read-only grep capability but intentionally skips it here. Reason: each platform agent knows its repo's conventions best.
 
 Each platform agent's responsibility (referenced for clarity):
@@ -467,18 +468,18 @@ Release: {pending — not yet released | per platform once shipped: "android {ap
 {Design source none:}
 > Fill in after a design source is available — do not invent from text alone
 
-{Design source figma/html — list only; mark reuse vs new, no implementation detail. Source ref = Figma `node {id}` or HTML `file {path}`:}
-- {screen} ({node {id} | file {path}}) — reuse | new
+{Design source figma/html — list only, no implementation detail. Source ref = Figma `node {id}` or HTML `file {path}`. Do not classify a screen as reuse vs new: that is a codebase fact and you do not read the platform repos — see §Codebase inventory split:}
+- {screen} ({node {id} | file {path}})
 - ...
 
 ## Components
 {Design source none:}
 > Fill in after a design source is available — do not invent from text alone
 
-{Design source figma/html — Source ref = Figma node ID or HTML file#selector. The notes cell carries this component's OWN measurements (box, asset intrinsic size when it differs, radius, stroke) in design units; shared scales live in `## Measurements`, referenced not repeated:}
-| Component | Source ref | reuse / new | Size / color / state notes |
-|---|---|---|---|
-| ... | ... | ... | ... |
+{Design source figma/html — Source ref = Figma node ID or HTML file#selector. The notes cell carries this component's OWN measurements (box, asset intrinsic size when it differs, radius, stroke) in design units; shared scales live in `## Measurements`, referenced not repeated. No reuse/new column — see §Codebase inventory split:}
+| Component | Source ref | Size / color / state notes |
+|---|---|---|
+| ... | ... | ... |
 
 ## Measurements
 {Design source none:}
