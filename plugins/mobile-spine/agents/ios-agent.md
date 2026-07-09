@@ -72,6 +72,9 @@ The `_tasks` header's `Design source:` line says whether UI came from Figma or a
 - typography (Figma type styles / CSS `--font-*`, `font-size`/`weight`/`line-height`) → `Font` extension
 - a component (Figma component / repeated HTML block or web component) → `View` struct 1:1
 - assets → `Assets.xcassets`
+- measurements (`_tasks` `## Measurements` + each component's notes cell) → `pt`. The spec states **design units**; you convert. An asset's **intrinsic** size and the **box** it renders into are separate values — when the spec gives both, honor both; do not assume scale factors reconcile them.
+
+**Never substitute the screen's existing value for a measurement the spec states.** "Preserve what's already there" is the wrong default: the other platform's existing value differs, so both sides silently diverge from the design and from each other. If a value the spec needs is missing, stop and ask — it belongs in `_tasks` `## Open decisions`, not in your judgment.
 
 For an HTML mockup, the parity target is the rendered mockup, not pixel-matching the markup — translate layout/spacing/state intent, not literal CSS. Do **not** read the mockup from inside this repo; it lives in mobile-spine `_context/design/{feature}/` (read-only). The per-repo Figma 5-step procedure above (if defined) applies equally with an HTML mockup as the design reference — step 1 lists from the mockup instead of a Figma node.
 
