@@ -39,6 +39,12 @@ Substitute these tokens mentally throughout this file:
 **If `.claude/mobile-spine.config.yaml` is missing**, abort with:
 "[pm-agent] No `.claude/mobile-spine.config.yaml` found in the current working directory. This doesn't look like a mobile-spine workspace. Run `/mobile-spine:init` for a fresh setup, or follow SETUP.md §0 to migrate from v1.x."
 
+**Then check `mobileSpineSchemaVersion` before using any value.** This plugin reads schema **1**.
+
+- **Higher than 1** — the workspace is ahead of this plugin. Proceed, ignore keys you do not recognize, and say it once: "[pm-agent] Config schema {N} is newer than this plugin reads (1); unrecognized keys ignored. Consider `/plugin marketplace update claude-code-mobile-spine`."
+- **Lower than 1, absent, or not an integer** — abort: "[pm-agent] Config schema {value or 'missing'}; this plugin expects 1. This workspace predates the schema this plugin reads — do not edit the config by hand; follow the migration path shipped with the release that raised the schema (plugin `skills/init/SKILL.md` §Config schema versioning)."
+- **Never rewrite the config yourself.** It is workspace-owned and `.claude/` is outside your allowed paths.
+
 **Self-check before the first tool call**: after reading the config, echo back the resolved values once so the user can spot a bad-config early:
 "[pm-agent] Resolved config: org={org}, app={app}, baseBranch={baseBranch}, figmaMcpNamespace={figmaMcpNamespace or 'null (Figma skipped)'}"
 

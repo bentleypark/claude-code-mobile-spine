@@ -341,6 +341,8 @@ The full list of files to process:
 
 After the file-processing loop, write `.claude/mobile-spine.config.yaml`. The agents (`pm-agent` / `api-agent` / `android-agent` / `ios-agent`) read this file at every invocation — it's the source of truth for workspace-specific values.
 
+`mobileSpineSchemaVersion` is written as the current schema number (`1`). What happens when a workspace's schema and the plugin's disagree, and what a release owes when it raises the number, is defined once in §Config schema versioning below — do not restate it here.
+
 Normalize Q4 and Q5 first:
 
 - `figmaMcpNamespace`: pass through the selected namespace **after stripping any trailing UI markers**. AskUserQuestion labels can carry up to two markers:
@@ -415,6 +417,40 @@ Next steps:
   5. Inside the session, run /mcp to confirm the Figma MCP namespace if you set one.
   6. Walk through SETUP.md §9 Week 0 verification before relying on isolation.
 ```
+
+## Config schema versioning
+
+`mobileSpineSchemaVersion` is the contract between a **workspace-owned** file and a plugin that updates **independently of it**. `/plugin marketplace update` replaces the agent definitions in every workspace at once; nothing rewrites `.claude/mobile-spine.config.yaml`, because the user owns it. The two drift by construction, and the version field is how an agent notices.
+
+**Current schema: `1`.** Keys: `mobileSpineSchemaVersion`, `org`, `app`, `baseBranch`, `figmaMcpNamespace`, `copyrightHolder`.
+
+### Policy — asymmetric, because the two directions are not the same risk
+
+| Situation | Behavior |
+|---|---|
+| Config schema **higher** than the plugin's | Proceed. Ignore keys you don't recognize, and say so **once**. The user is ahead of the plugin; that is not an error, and blocking them would punish an upgrade. |
+| Config schema **lower** than the plugin's | **Abort.** The plugin expects keys the file does not carry, so proceeding means running on values that are absent or have been redefined — silently wrong, which is worse than stopped. |
+| Version key missing, or not an integer | **Abort.** An unversioned config cannot be reasoned about. |
+| Config file missing entirely | Existing behavior — abort and point at `/mobile-spine:init`. |
+
+**Never rewrite the config from an agent.** It is workspace-owned, and `.claude/` is outside every agent's allowed paths. Migration is a main-session action.
+
+### Release obligation
+
+**A release that raises `mobileSpineSchemaVersion` must ship the migration path in the same release.** Not the release after. When the plugin starts expecting schema *N*, every existing workspace is instantly at *N-1* and hits the abort above — so the recovery must already exist when the abort first becomes reachable.
+
+Two consequences worth stating before anyone writes schema 2:
+
+- **The recovery pointer must travel with the plugin, not the workspace.** A workspace stuck at an old schema also has an old `SETUP.md` — the same drift that caused the problem cannot be its own cure. The abort message names this section; it does not name a workspace file.
+- **Migration belongs in its own command, not in the init skill.** By the time a schema mismatch can happen, `/mobile-spine:init` has already run — it creates workspaces, and re-running it on an existing one is not what the user wants. A migration reads an existing config, applies the mapping for each schema step, preserves user-set values, defaults new keys, and writes back. That is a different program; it shares only the key list above.
+
+### Schema history
+
+| Schema | Introduced in | Migration from previous |
+|---|---|---|
+| `1` | v2.0 | n/a — first schema. A v1.x workspace has no config file at all; see the scaffolded `SETUP.md` §0. |
+
+No migration command ships today because no schema transition exists. The first release to add one ships it alongside.
 
 ## Notes
 
