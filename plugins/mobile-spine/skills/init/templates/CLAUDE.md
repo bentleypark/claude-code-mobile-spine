@@ -75,7 +75,7 @@ Policy bodies for the rule details live next to the things they govern:
 - `agents/android-agent.md` / `agents/ios-agent.md` §Phase 1 step 4 (baseline check), §Phase 2 description (trigger ownership), §Phase 2 Final report (next-step ordering).
 - `agents/pm-agent.md` §Cross-platform consistency review (after both PRs exist), §Post-merge close-out.
 
-## 4-case classification (pm-agent runs this on every call)
+## Case classification (pm-agent runs this on every call)
 
 | Case | Condition | Handling |
 |---|---|---|
@@ -83,6 +83,9 @@ Policy bodies for the rule details live next to the things they govern:
 | **B** | Existing domain + new endpoint (some not in _context) | Ask user for spec source (backend PR / OpenAPI / doc) for the new endpoints, then proceed |
 | **C** | New domain (`_context/api/{domain}.md` does not exist) | Author with an external spec source (temporary). After backend merge, refresh _context via api-agent and replace the path |
 | **D** | Backend not built + no spec source | Defer _tasks creation. Print message and stop |
+| **client-only** | The change calls no endpoint, or leaves the called set unchanged (copy edit, hiding an existing element) | Skip the staleness + scope pre-checks — no spec is consulted. No api-agent follow-up. Still confirm implementation status, since the screen already ships |
+
+The first four partition on what must be known about the backend before authoring; `client-only` is the case where the answer is "nothing", so it is exclusive with A/B/C and unrelated to D.
 
 Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-agent.md` — or browse on GitHub).
 
@@ -94,7 +97,7 @@ Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-
 | `/mobile-spine:feat [note]` | Interview for a new feature → invoke pm-agent | plugin: `plugins/mobile-spine/commands/feat.md` |
 | `/mobile-spine:init` | (Re-)scaffold a workspace | plugin: `plugins/mobile-spine/commands/init.md` + `skills/init/SKILL.md` |
 
-`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. A rich one-line `/feat <note>` is parsed up front, so only the still-unanswered items are asked. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Two early checks can divert before the case interview: an epic-sized requirement routes to phased decomposition, and a feature **already built on one platform but not the other** routes to cross-platform parity (the reference platform agent reverse-extracts a spec-term brief; pm-agent authors `_tasks` + a single issue for the lagging platform). Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
+`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. A rich one-line `/feat <note>` is parsed up front, so only the still-unanswered items are asked. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Three early checks can divert before the case interview: an epic-sized requirement routes to phased decomposition; a feature **already built on one platform but not the other** routes to cross-platform parity (the reference platform agent reverse-extracts a spec-term brief; pm-agent authors `_tasks` + a single issue for the lagging platform); and a change that **alters no backend endpoint** routes to client-only, skipping the spec pre-checks rather than being filed as case A and arguing them away. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
 
 ## Auto-loaded channels
 

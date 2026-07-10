@@ -2,9 +2,10 @@
 name: pm-agent
 description: >
   Reads a design source (Figma MCP or an HTML mockup) and _context/api/ specs
-  to write _tasks/{feature}.md. Classifies the request into one of 4 cases
+  to write _tasks/{feature}.md. Classifies the request into one of 5 values
   (A: existing endpoint / B: new endpoint in existing domain / C: new domain /
-  D: backend not built) and runs case-specific pre-checks before authoring.
+  D: backend not built / client-only: no endpoint changes) and runs
+  case-specific pre-checks before authoring.
   Supports a design-only path (derive requirements from the design when no API
   spec exists). Behavioral details (design-source fallback, dry-run gate,
   cross-platform review) live in the body.
@@ -75,6 +76,19 @@ Classify the request before any validation. The downstream flow branches on the 
 | **B. Existing domain + new endpoint** | _context exists + some listed endpoints missing | Ask the user for a spec source (backend PR URL, OpenAPI draft, design doc) for the new endpoints, then proceed |
 | **C. New domain** | `_context/api/{domain}.md` does not exist | Take an external spec source from the user and write a **temporary** _tasks. Mark the API Spec line as temporary. After backend merges, run api-agent and replace the path with the canonical _context entry |
 | **D. Backend not built** | Backend code missing AND no spec source | **Defer _tasks creation.** Print the deferred message below and stop |
+| **client-only** | The change calls no backend endpoint, or leaves the set of called endpoints unchanged | Skip Steps 2–3 — there is no spec being consulted. No api-agent follow-up. See §client-only handling below |
+
+**`client-only` is exclusive with A/B/C and orthogonal to D.** A/B/C partition on *what you must know about the backend before authoring*; a change that touches no endpoint needs to know nothing, so it is a fifth value rather than a variant of one of them. D asks whether the backend exists at all, which is not the question here. Auto-detection cannot reach `client-only` from `_context/api/{domain}.md` alone — it is decided by whether the change alters the set of endpoints the screen calls (`/feat` Item 1d makes that call before the case interview).
+
+### client-only handling
+
+Applies when the change alters no API call — a copy edit, hiding or removing an existing UI element, a client-side interaction on a screen that already ships.
+
+- **Skip Step 2 (staleness) and Step 3 (scope).** Both read a domain spec this change never consults. Filing such a change as case A instead forces those pre-checks to run and then be argued away in the header — the clause that neutralizes a true-but-irrelevant signal is the symptom, not the fix.
+- **Still record the domain.** It classifies the feature and makes `_tasks` searchable; it does *not* decide the case. Do not branch on whether `_context/api/{domain}.md` exists.
+- **No api-agent follow-up.** Nothing about the backend changed.
+- **Step 6 (§Case A implementation-status confirm) still runs.** The screen already ships, so "this may already be done on both platforms" is a live possibility, and the same defer path applies.
+- The `API Spec:` line names the domain without pointing at its spec — see the output format below.
 
 ### Case D handling (deferred)
 Print and stop:
@@ -90,7 +104,7 @@ After receiving, enter case-C mode: the `API Spec` line and the **one-line** cas
 
 ## Step 2 — Pre-check 1: staleness (time-based)
 
-**Applies to: case A, case B (existing endpoints only).** Skip for C/D.
+**Applies to: case A, case B (existing endpoints only).** Skip for C/D and for client-only — a change that consults no spec cannot be affected by that spec being stale.
 
 Stale criterion: `_context/api/{domain}.md` `Updated:` timestamp < `myapp-backend` last commit timestamp.
 
@@ -109,7 +123,7 @@ If stale, print and stop:
 
 ## Step 3 — Pre-check 2: input scope vs context comparison
 
-**Applies to: case A (full), case B (existing endpoints only).** Skip case C — no _context to compare.
+**Applies to: case A (full), case B (existing endpoints only).** Skip case C — no _context to compare. Skip client-only — the change's scope contains no endpoints to reconcile.
 
 Time-based staleness alone misses endpoints that exist in the backend but are
 no longer used by the product (e.g. a deprecated SNS provider). Run a separate
@@ -226,7 +240,7 @@ Gaps and spec/design conflicts surface as a side effect of this analysis — tha
 
 ## Case A: client implementation status check (just after dry-run, before live creation)
 
-**Applies to case A only.**
+**Applies to case A and client-only.** Both act on a screen that already ships, so the feature may already be built on both platforms.
 
 In case A the _context entry exists and pre-checks pass, but the feature may
 **already be implemented on both platforms**. If so, auto-creating issues
@@ -250,7 +264,7 @@ Therefore in case A, after printing the dry-run body and **before** calling
 - Write the _tasks body normally (preserves verification value).
 - Keep the completion checklist but suffix each item with `(already implemented, unverified)`. Users tick as they perform manual verification per platform.
 
-> Case A only. Cases B/C are by definition not yet implemented (new endpoint or new domain), so skip this check.
+> Case A and client-only only. Cases B/C are by definition not yet implemented (new endpoint or new domain), so skip this check.
 
 ## Codebase inventory split (pm-agent vs platform agents)
 
@@ -449,13 +463,13 @@ iOS Issue: myorg/myapp-ios#{N2}
 ```markdown
 # {feature}
 
-Case: {A | B | C}
+Case: {A | B | C | client-only}
 Status: {optional — for case A deferred: "deferred — already implemented on both platforms (confirmed {YYYY-MM-DD}). No issues created; _tasks kept as a verification artifact." | for parity (§Cross-platform parity): "parity — {reference} shipped ({outside spine | PR #{M}}); building {lagging}."}
 Android Issue: {myorg/myapp-android#{N1} | not created (case A deferred) | reference — already shipped, not re-issued (parity)}
 iOS Issue: {myorg/myapp-ios#{N2} | not created (case A deferred) | reference — already shipped, not re-issued (parity)}
 Created: {YYYY-MM-DD}
 Updated: {YYYY-MM-DD — bump on every re-run; this line + git diff is the changelog}
-API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | case C: temporary — {external source} | design-only: temporary — derived from design | parity: temporary — from {reference} as-built; confirm via api-agent (or _context/api/{domain}.md if it already covers them)}
+API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | case C: temporary — {external source} | client-only: not consulted — client-only (domain: {domain}) — name the domain, do NOT link its spec: no pre-check reads it and a link invites a staleness argument the change cannot be affected by | design-only: temporary — derived from design | parity: temporary — from {reference} as-built; confirm via api-agent (or _context/api/{domain}.md if it already covers them)}
 Design source: {figma — connected | html — {mockup path} | none — UI sections deferred | parity brief — {reference} as-built}
 Release: {pending — not yet released | per platform once shipped: "android {app vX.Y.Z} / ios {app vX.Y.Z} ({YYYY-MM-DD})". Authored as `pending`; set at §Post-merge close-out Phase B. Android and iOS may ship at different app versions — record each. "n/a" for a platform that isn't shipping this feature (already had it / platform-specific feature).}
 
@@ -618,7 +632,7 @@ Each `NN-{phase}.md` is a **normal `_tasks` file** — the exact `§_tasks/{feat
 
 Epic: {epic} (phase N of M) — see 00-overview.md
 Depends on: {phase K | none}
-Case: {A | B | C}
+Case: {A | B | C | client-only}
 {... the rest is the standard _tasks header + body, unchanged ...}
 ```
 
@@ -680,7 +694,7 @@ You also receive a **scope reconciliation**: `/feat` runs the *lagging* platform
 
 ### Authoring
 
-1. **Case classification still runs (Step 1).** Parity changes the spec *source* and the issue *scope*, not the 4-case logic. The reference already calls real endpoints, so the backend exists — **never case D**. If `_context/api/{domain}.md` covers those endpoints → case A (run the staleness + scope pre-checks). If `_context` is missing / partial → case B / C, with the brief's "endpoints actually called" as the temporary spec source.
+1. **Case classification still runs (Step 1).** Parity changes the spec *source* and the issue *scope*, not the case logic. If the brief lists no endpoints the feature calls — the reference ships a purely client-side change — it is **client-only**, and the parity build inherits that: no staleness or scope pre-check, no api-agent follow-up. Otherwise the reference already calls real endpoints, so the backend exists — **never case D**. If `_context/api/{domain}.md` covers those endpoints → case A (run the staleness + scope pre-checks). If `_context` is missing / partial → case B / C, with the brief's "endpoints actually called" as the temporary spec source.
 2. **Endpoints are confirmed, not speculative.** Unlike the design-only path, the reference *ships* these calls — they work. Put them in `## Endpoints` in-scope. If they're not yet in `_context/api`, mark `Domain spec: temporary — from {reference} as-built; confirm via api-agent` (case-C-style) — but they are **not** demoted into `## Open decisions` the way design-derived guesses are.
 3. **Fill UI sections from the brief.** `## Screens` / `## Components` come from the brief (Source ref = `{reference} as-built`, in place of a Figma node / HTML file). `## Shared behavior` = the brief's behavior, stated once, platform-neutral.
 4. **Co-changed / adjacent → real scope, not just the headline.** The brief's **Co-changed / adjacent** section (mined from the feature's commit history by the reference platform agent) lists screens / logic the feature shipped *alongside* its headline screen — a shared component, an adjacent flow, a global handler. Do **not** drop these — this is the fix for the "ported only the surface requirement" failure mode. For each: if `relevance: likely in-scope`, fold it into `## Shared behavior` **and the lagging issue's scope**; if flagged `confirm`, raise it in `## Open decisions` as "reference also changed {X} alongside this feature — does {lagging} need the same?". The lagging platform's issue must carry the adjacent scope, not just the obvious screen.
@@ -694,7 +708,7 @@ You also receive a **scope reconciliation**: `/feat` runs the *lagging* platform
 Status: parity — {reference} shipped ({outside spine | PR #{M}}); building {lagging}.
 Android Issue: {myorg/myapp-android#{N} | reference — already shipped, not re-issued}
 iOS Issue:     {myorg/myapp-ios#{N} | reference — already shipped, not re-issued}
-API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | otherwise: temporary — from {reference} as-built; confirm via api-agent}
+API Spec: {case A/B: _context/api/{domain}.md (Updated: {time}) | client-only (the reference calls no endpoints): not consulted — client-only (domain: {domain}) — no api-agent follow-up | otherwise: temporary — from {reference} as-built; confirm via api-agent}
 Design source: parity brief — {reference} as-built
 ```
 
