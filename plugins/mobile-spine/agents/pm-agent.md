@@ -572,6 +572,19 @@ Status: {free-form epic progress, e.g. "phase 2 of 4 in progress" | "all phases 
 ## Goal
 {1-3 sentences: the epic-level user value. Not implementation, not per-phase detail.}
 
+## Requirements coverage
+| Requirement | Phase |
+|-------------|-------|
+| {one-line capability} | 1 |
+| {one-line capability} | 2 |
+| {one-line capability} | out of scope — {reason} |
+
+<!-- Every requirement from the decomposition requirement inventory maps to a phase
+     number, or to an explicit `out of scope — {reason}`. No blank Phase cell: a blank
+     is an unresolved gap and must be resolved before this overview is written (see the
+     Decomposition procedure's coverage-matrix step). Kept current by Next-phase
+     reconciliation as later phases surface capabilities a coarse pass missed. -->
+
 ## Phases
 | # | Phase | Scope (one line) | Status | _tasks file |
 |---|-------|------------------|--------|-------------|
@@ -627,10 +640,19 @@ This is the *procedure* for producing and advancing an epic; the format it produ
 
 Triggered when the requirement plainly exceeds one PR cycle — Step 1 reveals it spans multiple screens *and* multiple new endpoints, or has clear internal sequencing (the §Epic tasks "When something is an epic" test) — or the user explicitly asks to break it into phases.
 
-1. **Propose the phase breakdown — author nothing yet.** Analyze the requirement and present an ordered phase list to the user: per phase, a name + one-line scope; plus the sequencing between them. Number the phases in dependency order — a phase may depend only on **lower-numbered** phases (so `Depends on:` always points backward and a dependency cycle is impossible by construction). This is a proposal gate, like the Step 5 issue dry-run — wait for the user's approval (or revisions) before writing any file.
-2. **On approval, create the epic directory + overview.** First check `_tasks/{epic}/` does not already exist — if it does, stop and ask the user (it is likely an in-flight epic, in which case they want *next-phase*, not a fresh decomposition). Otherwise create `_tasks/{epic}/` and write `00-overview.md` per the §Epic tasks format — the goal, the `## Phases` table (every phase listed, all `⬜ pending`), sequencing notes, and any §Cross-phase decisions surfaced during the breakdown.
-3. **Author phase 1 in full.** Run the normal execution order Steps 1–9 (case classification, pre-checks, design source, issue dry-run, live issue creation, write `_tasks`) **scoped to phase 1's one-line scope** — phase 1 is just a feature. Output `_tasks/{epic}/01-{phase}.md` with the `Epic:` / `Depends on:` header lines. Update phase 1's `00-overview.md` row → `⏳ in progress` and fill its `_tasks file` cell.
-4. **Stop — do NOT author phases 2+.** Report (Step 9 one-line style): phase 1 is ready; the next phase is authored on a separate invocation after phase 1's §Post-merge close-out runs.
+1. **Inventory the requirements — a flat list, no phases yet.** From the epic brief and any epic-level design/spec source, enumerate the distinct capabilities the epic must deliver, each as a one-line requirement at **capability altitude** (a user-facing capability or behavior — "image attachment", "infinite scroll" — not implementation detail; per-phase Phase 0 handles design detail later). This flat list is the **completeness baseline**: every later step is checked against it. Author nothing here.
+
+   **Handling large design sources.** Inventory at **screen altitude, never element-by-element**, and never load full detail across the whole source at decomposition — full per-item detail is deferred to each phase's Phase 0.
+   - **Figma**: enumerate top-level frames via `get_metadata` (cheap structure — no styles / code); optional `get_screenshot` for a visual pass. Never run `get_design_context` across all nodes at decomposition.
+   - **HTML mockup**: enumerate files via a directory listing (filename ≈ screen); optional grep for structural markers (`<section>`, top-level `id=`, headings, screen-marker comments). Never read every file in full at decomposition.
+   - If the top level is still unwieldy, **step up one altitude** — Figma: frames → sections → pages; HTML: files → subfolders. If a single HTML file bundles many screens, **step down** and grep its top-level sections instead of reading it whole.
+
+   Decomposition into phases (step 2) is itself the chunking mechanism — each phase's Phase 0 later loads only its own subset, so no single call ever loads the whole design. Anything a coarse pass misses is caught by Next-phase reconciliation.
+2. **Propose the phase breakdown — author nothing yet.** Present an ordered phase list to the user: per phase, a name + one-line scope; plus the sequencing between them. Number the phases in dependency order — a phase may depend only on **lower-numbered** phases (so `Depends on:` always points backward and a dependency cycle is impossible by construction).
+3. **Build the coverage matrix — map every requirement to a phase.** Produce a `Requirement → phase` table covering the **entire** step-1 inventory. Each requirement maps to exactly one phase number, or is marked `out of scope — {reason}` if deliberately excluded. **Any requirement left unmapped is a gap** — surface it and resolve it (assign a phase, or mark out-of-scope with a reason) before proceeding. This matrix **is the approval gate** — like the Step 5 issue dry-run, wait for the user's approval (or revisions) before writing any file. The user approves the *coverage*, not just the phase names; only a matrix with **zero blank Phase cells** may pass to step 4.
+4. **On approval, create the epic directory + overview.** First check `_tasks/{epic}/` does not already exist — if it does, stop and ask the user (it is likely an in-flight epic, in which case they want *next-phase*, not a fresh decomposition). Otherwise create `_tasks/{epic}/` and write `00-overview.md` per the §Epic tasks format — the goal, the `## Requirements coverage` matrix from step 3, the `## Phases` table (every phase listed, all `⬜ pending`), sequencing notes, and any §Cross-phase decisions surfaced during the breakdown.
+5. **Author phase 1 in full.** Run the normal execution order Steps 1–9 (case classification, pre-checks, design source, issue dry-run, live issue creation, write `_tasks`) **scoped to phase 1's one-line scope** — phase 1 is just a feature. Output `_tasks/{epic}/01-{phase}.md` with the `Epic:` / `Depends on:` header lines. Update phase 1's `00-overview.md` row → `⏳ in progress` and fill its `_tasks file` cell.
+6. **Stop — do NOT author phases 2+.** Report (Step 9 one-line style): phase 1 is ready; the next phase is authored on a separate invocation after phase 1's §Post-merge close-out runs.
 
 **Why phases 2+ are not authored upfront**: a later phase's spec depends on what the earlier phases actually shipped — an endpoint shape that shifted during phase 1's PR review, a component that ended up reused vs rebuilt. Pre-authoring every phase produces specs that are stale before they are used. The overview's one-line scopes are the durable plan; each full phase spec is written just-in-time.
 
@@ -640,7 +662,7 @@ Triggered by a user invocation naming the epic after a phase closed out — e.g.
 
 1. **Read `00-overview.md`.** Find the lowest-numbered phase with status `⬜ pending`. If there is none, the epic is fully authored — report that and stop.
 2. **Check that phase's `Depends on:` prerequisites.** Each prerequisite phase named in the overview should read `✅ merged`. A prerequisite that has fully closed out reads `✅ merged` — §Post-merge close-out's "Epic phase close-out" subsection flips the row. If a prerequisite's row is still `⏳ in progress`, its close-out has not run yet: do **not** silently proceed and do **not** silently hard-stop — ask the user to confirm that prerequisite phase's code has actually merged (a phase whose PRs merged but whose close-out is still pending is fine to build the next phase on; one whose PRs are genuinely unmerged is not). Never author a phase ahead of a prerequisite the user has not confirmed merged.
-3. **Author the phase in full.** Run Steps 1–9 scoped to the phase's overview scope line, informed by what the prior phases actually shipped (read their `_tasks/{epic}/NN-*.md` files + the overview's §Cross-phase decisions). Output `_tasks/{epic}/NN-{phase}.md`.
+3. **Author the phase in full.** Run Steps 1–9 scoped to the phase's overview scope line, informed by what the prior phases actually shipped (read their `_tasks/{epic}/NN-*.md` files + the overview's §Cross-phase decisions). Output `_tasks/{epic}/NN-{phase}.md`. **Reconcile the coverage matrix**: if this phase's Phase 0 inventory surfaces a capability absent from the overview's `## Requirements coverage`, add a row for it (mark `surfaced in phase N`) and either fold it into this phase's scope or route it to `## Open decisions` — the matrix must not silently drift from what phases actually build.
 4. **Update the overview.** That phase's row → `⏳ in progress` with its `_tasks file` cell filled; bump `00-overview.md` `Updated:` and `Status:`.
 5. **One-line report.** If this was the last `⬜ pending` phase, note that authoring is complete and only per-phase close-out cycles remain.
 

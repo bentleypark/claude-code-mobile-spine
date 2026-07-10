@@ -220,8 +220,12 @@ When the epic check (Item 1b) routed to decomposition, invoke pm-agent (Agent to
 
 ## Procedure
 This is an epic. Run §Epic decomposition → "Decomposition (first invocation)" in pm-agent.md:
-propose an ordered phase breakdown for the user's approval, then on approval
-create _tasks/{epic}/ + 00-overview.md and author phase 1 in full mode.
+inventory the requirements at screen altitude (see "Handling large design sources" —
+never load the whole Figma / HTML source at once), propose an ordered phase breakdown,
+then build the requirements coverage matrix. The matrix is the approval gate: every
+inventoried requirement maps to a phase or is marked out-of-scope, no blanks. On the
+user's approval, create _tasks/{epic}/ + 00-overview.md (incl. ## Requirements coverage)
+and author phase 1 in full mode.
 Do NOT author phases 2+ — those are authored just-in-time on later
 next-phase invocations.
 
