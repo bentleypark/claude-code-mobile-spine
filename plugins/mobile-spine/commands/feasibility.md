@@ -1,12 +1,12 @@
 ---
-description: Pre-design feasibility review — check a planning document's platform premises against current OS docs and both repos, before design starts
-argument-hint: [planning document path + feature name — e.g. "docs/plan.docx - order reminders"]
+description: Pre-design feasibility review — check a planning document's (or HTML prototype's) platform premises against current OS docs and both repos, before design is settled
+argument-hint: [planning document or prototype path + feature name — e.g. "docs/plan.docx - order reminders", "_context/design/order-reminders/ - order-reminders"]
 allowed-tools: [Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, "Bash(textutil:*)", "Bash(pandoc:*)"]
 ---
 
 # /mobile-spine:feasibility — Pre-design feasibility review
 
-Every other spine path ends in a `_tasks` spec. This one stops before design: it starts from a **planning document alone** and answers, before anyone designs a screen: *does each platform allow what this document asks for, and what would it take in our repos?* The output is one review document for planners and designers — `_context/feasibility/{feature}.md`.
+Every other spine path ends in a `_tasks` spec. This one stops before design is settled: it starts from a **planning document alone** — a prose spec, or an HTML prototype that stands in for one — and answers, before anyone builds a screen: *does each platform allow what this document asks for, and what would it take in our repos?* The output is one review document for planners and designers — `_context/feasibility/{feature}.md`.
 
 The main session runs this command and does the extraction and the merge itself. Two kinds of judgment are delegated, in parallel:
 
@@ -32,14 +32,25 @@ Parse `$ARGUMENTS` first; ask only for what it does not supply, batched into one
 - **Planning document** — a path. Read it by type:
   - `.md` / `.txt` / `.pdf` → `Read` directly.
   - `.docx` → convert to text: `textutil -convert txt -stdout {path}` (macOS), else `pandoc -t plain {path}`. If neither is available, ask the user for a `.pdf` or `.md` export. Never guess at a document you could not read.
-  - **Check the text you read, whatever the format.** A converter can succeed and still return nothing useful — a renamed `.doc`, a protected file, requirements held in text boxes or pasted as images — and a long PDF read in page ranges can stop short. If the text is empty, far shorter than the document should be, or missing sections its own table of contents lists, try the other converter (or read the remaining pages), then ask for a PDF export. Treat a document that still reads this way as unreadable (§Abort conditions).
+  - **HTML prototype** — a `.html` file, or a folder holding one (see §HTML prototype input below).
+  - **Check the text you read, whatever the format.** A converter can succeed and still return nothing useful — a renamed `.doc`, a protected file, requirements held in text boxes or pasted as images — and a long PDF read in page ranges can stop short. If the text is empty, far shorter than the document should be, or missing sections its own table of contents lists, try the other converter (or read the remaining pages), then ask for a PDF export. For a prototype, the check is that every screen its navigation or router names was found. Treat an input that still reads this way as unreadable (§Abort conditions).
   - Must **not** live inside `../myapp-android/`, `../myapp-ios/`, or `../myapp-backend/` — ask the user to copy it into the workspace instead (platform repos are their agents' territory).
-- **Feature key** — kebab-case, used for the output filename. Derive it from the document title when obvious and say so; ask only when it is not.
+- **Feature key** — kebab-case, used for the output filename. Derive it from the document title when obvious and say so; ask only when it is not. For a prototype under `_context/design/{feature}/`, the folder name is the key (when it is kebab-case; otherwise derive one and say so).
+
 - **Platforms** — default both. Narrow to one only when the user or the document says so.
 
 If `_tasks/{feature}.md` or `_tasks/{feature}/` already exists, the feature has been specified before this review. Read it for context, but **ground every verdict in the planning document and the fetched docs**: where the spec has already decided differently (a requirement dropped, a behavior changed), say so in that premise's `Notes:` line and leave the verdict alone.
 
 If `_context/feasibility/{feature}.md` already exists, this is a **re-review**: read it, and at Step 5 edit it in place (bump `Reviewed:`) rather than writing a second document.
+
+### HTML prototype input
+
+A prototype is the planning document when no prose spec exists: its screens, copy and states *are* the requirements. Read it with the same discipline as pm-agent's design inventory (`pm-agent.md` §HTML branch):
+
+1. **Resolve the files.** A single `.html` → that file. A folder → `Glob` it for `*.html`, `*.css` and `*.js`, and read every one of them, not just the entry page. Never execute anything — the source is the spec.
+2. **Find the screens.** One file, or one top-level `<section>` / route / page container, is one screen. Screens rendered from script — template strings, a state machine, a router table — count the same as static markup: read the script for them.
+3. **Unreadable prototype.** A build output whose markup is an empty mount point and whose script is minified with no readable UI copy cannot be reviewed from source — do not try to decode or deobfuscate it. Stop and ask for the unbuilt source, a static export, or screenshots of every screen (`Read` shows images; quote only text visible in them).
+4. **Where it should live.** Recommend `_context/design/{feature}/`. The prototype is then also `/mobile-spine:feat`'s `html` design source at the same path, and `/feat` finds both it and this review by the same feature key.
 
 ## Step 2 — Extract the platform premises (main session)
 
@@ -64,6 +75,11 @@ Rules:
 - **One premise per line.** "Show a reminder when permission is revoked" is two premises: the app can *detect* the revocation, and the app can *notify* at that moment.
 - **The value source is where the truth lives, not where the code runs.** "Days of history shown" is `OS API` if the OS limits how far back can be read, `app` if the app keeps its own copy.
 - A requirement with no platform dependency is not a premise. Leave it out — the review is not a summary of the document.
+
+**From a prototype**, premises also hide outside the visible copy: `href`s and URL schemes (a deep link), input defaults and limits (a preset time, a date range), hidden or conditional elements and the state that shows them (`display:none`, `hidden`, `data-*`, a state flag in the script), and transitions in the script (what happens on unlink, on a second denial, on reconnect). Read all of them.
+
+- **Quote the location, not a section.** Use the prototype's own requirement id when the screen carries one; otherwise `{file}#{screen id or selector}`.
+- **Mock values are not requirements.** Sample numbers, names and dates fill the screen; they are not asked for. Quote the label ("estimated arrival"), not the value ("12 min"), state the function it implies (a live estimate must stay fresh), and tag the premise `implied by prototype` in its Premise cell. Do the same for any premise the prototype shows but never states.
 
 Print the premise table to the user and continue (no approval gate — the review document is the place to correct it).
 
@@ -139,7 +155,7 @@ Do not re-judge the OS question yourself. If a docs-agent verdict looks wrong, s
 ```markdown
 # Feasibility review: {feature}
 
-Source: {planning document filename} ({section range reviewed, or "whole document" — only if every section was read})
+Source: {planning document or prototype path} ({section range or screens reviewed, or "whole document" / "all screens" — only if every one was read})
 Reviewed: {YYYY-MM-DD}
 Baseline: Android minSdk {N | unknown | repo not checked} / targetSdk {…} · iOS deployment target {N | unknown | repo not checked}
 
@@ -194,8 +210,8 @@ In one message: the output path; the summary lines; the premises whose verdict i
 
 ## Abort conditions
 
-- The planning document cannot be read (missing, unconvertible, or converted text that fails the §Step 1 check) → stop and ask; never review a summary of a document you have not read.
-- Step 2 finds **no** platform premise → first confirm the text you read has the document's sections (§Step 1 check); if it does not, the document is unreadable (above). Otherwise say so, write no file. The document has nothing for this review to check.
+- The planning document cannot be read (missing, unconvertible, converted text that fails the §Step 1 check, or a prototype that is a build output with no readable UI copy — §HTML prototype input) → stop and ask; never review a summary of a document you have not read.
+- Step 2 finds **no** platform premise → first confirm the text you read has the document's sections — for a prototype, its screens and the copy on them (§Step 1 check); if it does not, the document is unreadable (above). Otherwise say so, write no file. The document has nothing for this review to check.
 - A docs-agent reply contains a `FETCH BLOCKED` line → stop and write no review. Quote the blocked target and error verbatim. Tell the user to add the web allows from SETUP.md §3-3 to `.claude/settings.json` and restart Claude Code; if those allows are already present, say so and suggest checking the session's permission mode instead.
 - More than half of the `OS API` premises are still `not judged` after the §Step 4 retry → stop, write no review, and report which batches failed and why.
 - A platform agent reports its repo missing or unreadable, errors, or returns no baseline → continue with the other layers; that platform is `repo not checked` (§Step 4 coverage check says where it goes).

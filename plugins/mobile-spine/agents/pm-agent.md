@@ -201,14 +201,14 @@ Therefore at task kickoff:
 
 The same no-single-screen discipline applies: an HTML mockup set is the equivalent of a multi-selected Figma frame. Read **all** of it, not one page.
 
-1. Resolve the mockup location. `Glob` the supplied path (or `_context/design/{feature}/`) for `*.html` / `*.css` — never read mockups from a platform/backend repo (§Safety rule).
-2. `Read` every HTML file. Treat **each file (or each top-level route / `<section>` / page-level container) as one screen** — the analogue of a Figma top-level node.
+1. Resolve the mockup location. `Glob` the supplied path (or `_context/design/{feature}/`) for `*.html` / `*.css` / `*.js` — never read mockups from a platform/backend repo (§Safety rule).
+2. `Read` every HTML file, and every script it loads. Treat **each file (or each top-level route / `<section>` / page-level container) as one screen** — the analogue of a Figma top-level node. A screen rendered from script (template strings, a state machine, a router table) counts the same as static markup.
 3. Extract **design tokens** from CSS `:root` custom properties (`--color-*`, `--font-*`, spacing) — the analogue of `get_variable_defs`. Inline styles count too.
 4. Identify **components** from repeated DOM structures / reused class blocks (BEM-style blocks, web components, repeated card/list-item markup) — the analogue of per-node component extraction.
 5. Check for missing **states** (empty / loading / error / success-failure). These may be separate files or toggled by a CSS class / `hidden` attribute / `data-state`. If a state seems absent, ping the user once: "is there a separate mockup for it, or should this be a code-level TODO?" — same gate as the Figma branch's step 4.
 6. **Measure**, to the same coverage as the Figma branch's step 5 — spacing, typography (incl. line-height and letter-spacing), asset intrinsic dimensions vs. their rendered box, radius, stroke. The `:root` scales from step 3 are the shared values; per-element rules and `width` / `height` attributes carry the specific ones. An unreadable value is an open decision, exactly as in the Figma branch's step 6.
 
-> No headless rendering or screenshotting — the HTML/CSS **source** is the spec. Do not execute JS; treat the markup + stylesheets as static. (Asset generation is out of scope. There is no `get_screenshot` equivalent to require here: the Figma branch needs a rendered reference because a node's numbers are not readable as text, whereas the mockup's markup and stylesheets already *are* that reference.)
+> No headless rendering or screenshotting — the HTML/CSS **source** is the spec. Do not execute JS; treat the markup, stylesheets and scripts as static source. (Asset generation is out of scope. There is no `get_screenshot` equivalent to require here: the Figma branch needs a rendered reference because a node's numbers are not readable as text, whereas the mockup's markup and stylesheets already *are* that reference.)
 
 ### Measurement altitude and units
 

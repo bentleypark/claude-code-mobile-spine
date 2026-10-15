@@ -510,12 +510,12 @@ user request
 > the per-repo CLAUDE.md Figma 5-step approval gates. android may finish while
 > ios is still waiting for an approval step.
 
-### Pre-design feasibility review (planning document, no design yet)
+### Pre-design feasibility review (planning document or HTML prototype)
 
-Before design starts, check what the planning document asks the platforms for:
+Before design is settled, check what the planning document asks the platforms for. The input can also be an HTML prototype standing in for a spec — keep it under `_context/design/{feature}/` and `/feat` later picks up both the prototype (as its `html` design source) and the review by the same key:
 
 ```
-/mobile-spine:feasibility {planning document path} - {feature}
+/mobile-spine:feasibility {planning document or prototype path} - {feature}
   ├─ main session: extract platform premises (quoted requirement · premise · value source OS API / app / server)
   ├─ docs-agent × N   ∥  OS / store-policy verdicts, cited from fetched official docs (batches of ≤ 8 premises, by topic)
   ├─ android-agent    ∥  feasibility check mode: minSdk / targetSdk, declarations, what exists (read-only mode)
