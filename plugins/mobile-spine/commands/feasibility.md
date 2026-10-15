@@ -45,13 +45,16 @@ If `_context/feasibility/{feature}.md` already exists, this is a **re-review**: 
 
 - **Ids are stable.** At Step 2, match each premise to the existing one it continues — same requirement, same platform question — even if the requirement moved or was reworded, and keep its id. A reworded requirement gets its new quote and a `Notes:` entry `requirement changed ({date})`.
 - **New premises take the next free id**, never a gap and never a reused number.
-- **A premise whose requirement is gone** stays in `## Premises` as `withdrawn — requirement removed ({date})` in its platform cells, and its Evidence block is kept. It is not judged again and is not in the unresolved set. Never delete a row or renumber the rest.
-- **Every active premise is judged again** (Step 3). An active premise's Evidence line this run did not re-fetch keeps its old date and is flagged `stale evidence`. A withdrawn premise's Evidence is left as it is, unflagged.
-- **`Decision:` lines are the planner's, not yours** (§Step 5 `## Alternatives`). Keep each filled one exactly as written. Then, per entry:
-  - The premise is still `not possible` / `alternative` with the same verdict → nothing to add.
-  - Its verdict changed, including to `not judged` → add `verdict changed since decision — reconfirm` beneath the decision.
-  - It is now `withdrawn`, or no longer `not possible` / `alternative` → an **empty** `Decision:` entry is removed; a **filled** one stays, with `decision moot — {premise withdrawn | verdict now {verdict}}` beneath it. A moot entry is in neither the unresolved set nor pm-agent's input.
-  - A `reconfirm` marker from an earlier review stays. Only the planner removes it, by re-dating the `Decision:` line.
+- **A premise whose requirement is gone** stays in `## Premises` as `withdrawn — requirement removed ({date})` in its Android, iOS and Store policy cells, and its Evidence block is kept. It is not judged again and is not in the unresolved set. Never delete a row or renumber the rest.
+- **Every active premise is judged again** (Step 3). An active premise's Evidence is refreshed per platform: when this run fetched evidence for that platform's verdict, the old lines it did not re-fetch move to `Notes:` as `previous ({date}): {URL}`; when this run fetched nothing for it (the verdict rests only on old lines), those lines keep their date and are flagged `stale evidence`. A withdrawn premise's Evidence is left as it is, unflagged.
+- **`Decision:` lines are the planner's, not yours** (§Step 5 `## Alternatives`). Keep each filled one exactly as written. Beneath it there is at most **one** marker line; per entry, the first rule that matches sets it:
+  1. **Premise `withdrawn`** → an empty entry is removed; a filled one gets `decision moot — premise withdrawn`.
+  2. **No longer blocking** — judged on this run's verdicts, on every platform: none is `not possible`, `alternative`, or a `conditional` that binds on the current floor, and no cell carries an entry of the unresolved set (§Step 4) → an empty entry is removed; a filled one gets `decision moot — verdict now {verdict}`. A `conditional` that binds on the floor is still blocking: users below it are exactly what the decision chose for.
+  3. **Empty `Decision:`, still blocking** → no marker. The empty line is already in the unresolved set.
+  4. **Filled, same as last review** — identical verdicts and flags on every platform, and no marker yet → nothing.
+  5. **Filled, anything else** — a verdict changed, a flag appeared, a cell is now unresolved, the entry already carried `reconfirm`, or a moot entry's premise is blocking again → `verdict changed since decision — reconfirm`.
+
+  A new marker replaces the old one. A moot entry is in neither the unresolved set nor pm-agent's input. A `reconfirm` marker stays across re-reviews — unless rule 1 or 2 makes the entry moot — until the planner reconfirms: they re-date the `Decision:` line and delete the marker. Every entry's mechanism, citation and design-impact text is rewritten for this run's verdicts; only a filled `Decision:` line is left untouched.
 
 ### HTML prototype input
 
@@ -178,7 +181,7 @@ Baseline: Android minSdk {N | unknown | repo not checked} / targetSdk {…} · i
 | P1 | "{…}" (§<section>) | {…} | OS API | conditional — API 34+ | not possible | iOS: review risk |
 
 ## Alternatives
-{Only for premises with a `not possible` or `alternative` verdict: the documented mechanism that reaches the same user outcome, with its citation, and what it changes for the design. Omit the section if there are none. Each entry ends with a `Decision:` line, which **the planner fills in** — this command writes it empty and never fills or changes it:}
+{Only for premises with a `not possible` or `alternative` verdict: the documented mechanism that reaches the same user outcome, with its citation, and what it changes for the design. On a re-review, the entries §Step 1 keeps (moot, reconfirm) stay too; omit the section only when it holds no entries at all. Each entry ends with a `Decision:` line, which **the planner fills in** — this command writes a new one empty and never fills or edits a filled one; it only adds the markers §Step 1 names beneath it:}
 
 ### P{n} — {premise, one line}
 {mechanism, citation, design impact}
@@ -227,5 +230,5 @@ In one message: the output path; the summary lines; the premises whose verdict i
 - The planning document cannot be read (missing, unconvertible, converted text that fails the §Step 1 check, or a prototype that is a build output with no readable UI copy — §HTML prototype input) → stop and ask; never review a summary of a document you have not read.
 - Step 2 finds **no** platform premise → first confirm the text you read has the document's sections — for a prototype, its screens and the copy on them (§Step 1 check); if it does not, the document is unreadable (above). Otherwise say so, write no file. The document has nothing for this review to check.
 - A docs-agent reply contains a `FETCH BLOCKED` line → stop and write no review. Quote the blocked target and error verbatim. Tell the user to add the web allows from SETUP.md §3-3 to `.claude/settings.json` and restart Claude Code; if those allows are already present, say so and suggest checking the session's permission mode instead.
-- More than half of the `OS API` premises are still `not judged` after the §Step 4 retry → stop, write no review, and report which batches failed and why.
+- More than half of the active (not `withdrawn`) `OS API` premises are still `not judged` after the §Step 4 retry → stop, write no review, and report which batches failed and why.
 - A platform agent reports its repo missing or unreadable, errors, or returns no baseline → continue with the other layers; that platform is `repo not checked` (§Step 4 coverage check says where it goes).

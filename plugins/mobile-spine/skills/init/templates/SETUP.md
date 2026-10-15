@@ -528,7 +528,7 @@ Before design is settled, check what the planning document asks the platforms fo
 
 Expect several docs-agent runs at once — one per batch. The platform agents' read-only mode is prompt-level (they keep their usual tools); docs-agent's is its tool surface. Input formats, re-review and abort cases: `plugins/mobile-spine/commands/feasibility.md`.
 
-Planners record their choice for each `## Alternatives` entry on its `Decision:` line; until it is filled, pm-agent treats that entry as an open decision. Re-running the command on a revised plan updates the review in place, keeps premise ids and filled decisions, marks removed requirements `withdrawn`, and names any `_tasks` spec whose cited ids changed.
+Planners record their choice for each `## Alternatives` entry on its `Decision:` line; until it is filled, pm-agent treats that entry as an open decision. If a later re-review marks a decision `reconfirm` (its verdict changed), the planner reconfirms it by re-dating the line and deleting the marker. Re-running the command on a revised plan updates the review in place, keeps premise ids and filled decisions, marks removed requirements `withdrawn`, and names any `_tasks` spec whose cited ids changed.
 
 The review names platform APIs (its citations need them); `_tasks` still does not — pm-agent carries the constraints in by outcome, and unresolved verdicts become `## Open decisions`.
 
