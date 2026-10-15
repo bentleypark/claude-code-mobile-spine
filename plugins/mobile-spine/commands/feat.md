@@ -35,7 +35,7 @@ Before Item 1, read `$ARGUMENTS` once and extract whatever the user already supp
 - **design source** — "figma" (multi-select), explicit Figma nodeIds (`1:1075, …`), an HTML/CSS path, or "no design".
 - **case hint** — "backend not built" / "frontend-first" → case-D hint; any existing-vs-new-endpoint hint if stated.
 
-Then **auto-detect the design source from disk**: if `_context/design/{feature}/` exists and holds `*.html` / `*.css`, treat the design source as `html` at that path **without asking** (Item 4 becomes a one-line confirmation at most).
+Then **auto-detect the design source from disk**: if `_context/design/{feature}/` exists and holds `*.html` / `*.css`, treat the design source as `html` at that path **without asking** (pm-agent then reads the scripts those pages load as well — pm-agent.md §HTML branch) (Item 4 becomes a one-line confirmation at most).
 
 Likewise **auto-detect a feasibility review**: if `_context/feasibility/{feature}.md` exists (written before design by `/mobile-spine:feasibility`), pass its path to pm-agent on every path below (each template carries a `Feasibility review` line) — no question needed. pm-agent reads it as an input (pm-agent.md §Feasibility review). If the exact path is missing but `_context/feasibility/` holds other reviews, list them and ask once whether one of them is this feature's — the two commands can derive different keys, and a silent miss drops the review. Whichever file is settled on — the exact match or the one the user picked — is the **resolved review path**; the templates carry that path, never a path rebuilt from `{feature}`.
 

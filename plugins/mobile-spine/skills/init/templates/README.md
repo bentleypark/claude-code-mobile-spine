@@ -46,7 +46,7 @@ claude
 | `.claude/commands/feat.md` | Thin delegation stub for `/feat` — forwards to `/mobile-spine:feat`. The real interview logic + the five subagents (api / pm / android / ios / docs) live in the mobile-spine plugin (`plugins/mobile-spine/agents/`, `plugins/mobile-spine/commands/`) and auto-update via `/plugin marketplace update`. |
 | `_context/api/{domain}.md` | Backend API specs authored by api-agent. |
 | `_context/design/{feature}/` | Per-feature Figma assets (when MCP not connected). |
-| `_context/feasibility/{feature}.md` | Pre-design feasibility review of a planning document (`/mobile-spine:feasibility`) — for planners and designers; pm-agent reads it later. Created on first run. |
+| `_context/feasibility/{feature}.md` | Pre-design feasibility review of a planning document or HTML prototype (`/mobile-spine:feasibility`) — for planners and designers; pm-agent reads it later. Created on first run. |
 | `_context/operations.md` | Run log: weekly retros, measurements, decisions. |
 | `_tasks/{feature}.md` | Per-feature implementation specs (pm-agent author; 1:1 with GitHub issues in both platform repos). |
 
