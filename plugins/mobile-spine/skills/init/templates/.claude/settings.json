@@ -10,7 +10,13 @@
       "Edit(../myapp-ios/**)",
       "Write(../myapp-ios/**)",
       "Bash(cd ../myapp-android *)",
-      "Bash(cd ../myapp-ios *)"
+      "Bash(cd ../myapp-ios *)",
+      "WebSearch",
+      "WebFetch(domain:developer.apple.com)",
+      "WebFetch(domain:support.apple.com)",
+      "WebFetch(domain:developer.android.com)",
+      "WebFetch(domain:source.android.com)",
+      "WebFetch(domain:support.google.com)"
     ],
     "deny": [
       "Edit(../myapp-backend/**)",

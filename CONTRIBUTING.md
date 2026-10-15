@@ -19,10 +19,11 @@ claude-code-mobile-spine/                            ← marketplace repo root
         ├── .claude-plugin/
         │   └── plugin.json                         ← plugin manifest (version = install cache key; bumped by a release PR, never in a feature PR)
         ├── agents/                                 ← plugin primitives — globally available subagents
-        │   └── {api,pm,android,ios}-agent.md
+        │   └── {api,pm,android,ios,docs}-agent.md
         ├── commands/                               ← plugin primitives — globally available slash commands
         │   ├── init.md                             ← /mobile-spine:init
-        │   └── feat.md                             ← /mobile-spine:feat
+        │   ├── feat.md                             ← /mobile-spine:feat
+        │   └── feasibility.md                      ← /mobile-spine:feasibility
         └── skills/
             └── init/                               ← skill: invoked as /mobile-spine:init
                 ├── SKILL.md                        ← skill behavior
@@ -51,11 +52,11 @@ and "verified" claims. New content should follow the same rules:
   observation counts ("4 of 5 nodes missed in Q2 pilot"). Anonymize to
   general statements.
 - **Stay placeholder-friendly (scaffold templates only)** — the init skill substitutes `myorg`, `myapp`, `<your name>` (LICENSE), and `develop` (whole-word, branch-name uses only) per `plugins/mobile-spine/skills/init/SKILL.md` §4-2. The Figma MCP namespace is **not** substituted in v2.0 — it lives in `.claude/mobile-spine.config.yaml` (written by init from Q4) and the plugin's agents read it at invocation. New scaffold-template content that adds any of `myorg`/`myapp`/`<your name>`/`develop` must declare its substitution behavior in SKILL.md.
-- **Plugin primitives (`agents/`, `commands/`) — no init-time substitution.** Agents and `commands/feat.md` use literal token forms (`myorg`, `myapp`, `develop`, etc.) in their body and rely on the Configuration section to instruct mental substitution against the workspace's `.claude/mobile-spine.config.yaml`. Don't add init-time substitution rules for these files.
+- **Plugin primitives (`agents/`, `commands/`) — no init-time substitution.** Agents and the plugin-level commands (`feat.md`, `feasibility.md`) use literal token forms (`myorg`, `myapp`, `develop`, etc.) in their body and rely on the Configuration section to instruct mental substitution against the workspace's `.claude/mobile-spine.config.yaml`. Don't add init-time substitution rules for these files.
 
 ## Plugin primitives (`agents/`, `commands/`)
 
-The four agent files (`plugins/mobile-spine/agents/*.md`) and the plugin-level `commands/feat.md` are loaded by Claude Code's plugin system at session start and available globally. If you change one:
+The agent files (`plugins/mobile-spine/agents/*.md`) and the plugin-level commands (`commands/feat.md`, `commands/feasibility.md`) are loaded by Claude Code's plugin system at session start and available globally. If you change one:
 
 1. Reinstall the plugin from the local checkout (or push to a test marketplace) so the cache picks it up.
 2. Restart Claude Code in a scaffolded workspace.

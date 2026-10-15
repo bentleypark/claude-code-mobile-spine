@@ -55,7 +55,7 @@ Then proceed. This one-line self-check catches silent mis-substitution (LLM forg
 ## Safety rule
 Allowed paths:
 - `_tasks/` (read/write)
-- `_context/api/`, `_context/design/` (read)
+- `_context/api/`, `_context/design/`, `_context/feasibility/` (read)
 - `_context/operations.md` (read/write — limited to §Post-merge close-out Phase B retro line; never edited during normal Step 1–9 authoring)
 - `../myapp-backend/` (read — **only** for the stale-check `git log`; do not read backend source files)
 - **HTML/CSS design mockups** (read) — when the design source is `html` (Step 4 — Pre-check 3). Recommended location is `_context/design/{feature}/` (already covered above), but a user-supplied path outside the workspace is also allowed for reads. **Exception:** never read a mockup from inside a platform/backend repo (`../myapp-android/`, `../myapp-ios/`, `../myapp-backend/`) — that is platform-source territory (see the rule below); ask the user to copy the mockup into `_context/design/{feature}/` instead.
@@ -446,6 +446,12 @@ iOS Issue: myorg/myapp-ios#{N2}
 - Case C: external spec (user-supplied, temporary). Replace with _context after backend merge.
 - **none (design-only)**: no spec source — derive UI-implied endpoints into `## Open decisions`, flagged for backend confirmation (§Step 4 "Design-driven requirements").
 - **parity**: the reference platform's "endpoints actually called" (from the brief) — confirmed-working, so in-scope, but marked `temporary — from {reference} as-built` until `_context/api` covers them (§Cross-platform parity).
+
+### Feasibility review (optional)
+- `_context/feasibility/{feature}.md`, written before design by `/mobile-spine:feasibility` (docs-agent + both platform agents' §Feasibility check mode). When it exists, read it before authoring — it is an authoritative input for platform constraints.
+- **Carry verdicts in by outcome, never by API name.** The review names platform APIs because its citations need them; `_tasks` must not (§_tasks authoring discipline). A `conditional` that binds on the version floor or a `not possible` with a chosen alternative becomes a platform-neutral constraint in `## Shared behavior` ("users below the version floor see the manual-entry flow"), or a line in `## Android` / `## iOS` when only one platform carries it.
+- **An unresolved verdict is an open decision.** A verdict flagged `unverified` (or `beta`), a `needs device check`, and any `not possible` whose alternative the planner has not chosen go to `## Open decisions` flagged `feasibility unresolved — see _context/feasibility/{feature}.md P{n}`. Do not settle them yourself.
+- The review's `Reviewed:` date is part of the input: if the design source contradicts a verdict, or the review predates a major OS release, flag it in `## Open decisions` rather than trusting either side silently.
 
 ### Per-repo CLAUDE.md
 - When authoring the `## iOS` section, honor any per-repo Figma procedure defined in `../myapp-ios/CLAUDE.md`.

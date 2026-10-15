@@ -54,7 +54,7 @@ A directory tree like:
 └── _tasks/.gitkeep
 ```
 
-The four subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`) and the full `/feat` command logic are **plugin primitives** (under `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`) — served globally by the plugin, not copied to the workspace. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
+The five subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`, `docs-agent`) and the full `/feat` / `/feasibility` command logic are **plugin primitives** (under `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`) — served globally by the plugin, not copied to the workspace. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 ## After scaffolding
 

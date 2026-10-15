@@ -1,11 +1,11 @@
 # Mobile Spine — Subagent multi-agent setup guide
 
-> A complete guide for configuring PM, API, Android, and iOS agents using
+> A complete guide for configuring PM, API, Android, iOS, and docs agents using
 > Claude Code Subagents and a meta-repo coordination pattern, when Android
 > (`myapp-android`), iOS (`myapp-ios`), and Backend (`myapp-backend`) live in
 > **separate repos**.
 
-> **v2.0 note** — the four subagents and the full `/feat` command logic now live in the **plugin** (`plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`), not in your workspace's `.claude/`. Plugin updates propagate automatically via `/plugin marketplace update`. Your workspace owns: `CLAUDE.md`, `SETUP.md`, `_context/`, `_tasks/`, `.claude/settings.json`, `.claude/mobile-spine.config.yaml`, and a thin `.claude/commands/feat.md` stub. See §0 below if you're migrating from v1.x.
+> **v2.0 note** — the subagents and the full `/feat` command logic now live in the **plugin** (`plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`), not in your workspace's `.claude/`. Plugin updates propagate automatically via `/plugin marketplace update`. Your workspace owns: `CLAUDE.md`, `SETUP.md`, `_context/`, `_tasks/`, `.claude/settings.json`, `.claude/mobile-spine.config.yaml`, and a thin `.claude/commands/feat.md` stub. See §0 below if you're migrating from v1.x.
 
 ---
 
@@ -51,7 +51,7 @@ EOF
 # 4. Restart Claude Code in this workspace so the new plugin-level agents load
 ```
 
-After migration, `/feat` still works (via the new stub → plugin), and the four subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`) are served by the plugin and auto-update with `/plugin marketplace update`.
+After migration, `/feat` still works (via the new stub → plugin), and the subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`, `docs-agent`) are served by the plugin and auto-update with `/plugin marketplace update`.
 
 **Alternative — simpler for users with light customization**: scaffold a fresh v2.0 workspace via `/mobile-spine:init`, then copy your `_context/`, `_tasks/`, and any CLAUDE.md additions from the v1.x workspace into the new one. No risk of stale agent leftovers.
 
@@ -99,6 +99,7 @@ for prior art on the broader pattern.
 | pm-agent | Author `_tasks/` from a design source (Figma / HTML) + API specs; create GitHub issues; final review | `mobile-spine/_tasks/` |
 | android-agent | Kotlin/Compose implementation; honors `myapp-android/CLAUDE.md` | `../myapp-android/` |
 | ios-agent | Swift/SwiftUI implementation; honors `myapp-ios/CLAUDE.md` | `../myapp-ios/` |
+| docs-agent | Judge planning-document premises against current official Apple / Android docs and store policy, with citations (pre-design feasibility review) | web only — no repo or file access |
 
 ### Subagent vs Agent Teams
 
@@ -124,7 +125,7 @@ for prior art on the broader pattern.
 > README.md, LICENSE, .gitignore, `.claude/settings.json`,
 > `.claude/mobile-spine.config.yaml`, the thin `.claude/commands/feat.md`
 > stub, `_context/operations.md`, plus `.gitkeep` placeholders for
-> `_context/api/`, `_context/design/`, `_tasks/`). The four subagents are
+> `_context/api/`, `_context/design/`, `_tasks/`). The subagents are
 > plugin primitives — they live in `plugins/mobile-spine/agents/` and are
 > served globally, not copied to your workspace. Everything
 > else (`setup.sh`, `_context/architecture.md`, `_context/design/figma-links.md`,
@@ -150,15 +151,17 @@ for prior art on the broader pattern.
 │       ├── api/                        ← api-agent output (with Updated timestamp)
 │       │   ├── auth.md
 │       │   └── user.md
-│       └── design/
-│           └── figma-links.md
+│       ├── design/
+│       │   └── figma-links.md
+│       └── feasibility/                ← pre-design feasibility reviews (/mobile-spine:feasibility; created on first run)
+│           └── profile.md
 │
 ├── myapp-android/                      ← existing Android repo (independent git)
 ├── myapp-ios/                          ← existing iOS repo (independent git)
 └── myapp-backend/                      ← existing backend repo (independent git)
 ```
 
-The four subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`) and the full `/feat` command logic live in the **mobile-spine plugin** (under `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`), served globally — they do not appear under `.claude/` in this workspace. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
+The five subagents (`api-agent`, `pm-agent`, `android-agent`, `ios-agent`, `docs-agent`) and the full `/feat` / `/feasibility` command logic live in the **mobile-spine plugin** (under `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`), served globally — they do not appear under `.claude/` in this workspace. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 > The platform repos do not need to know mobile-spine exists.
 > The spine is operator-level tooling.
@@ -215,7 +218,13 @@ chmod +x setup.sh
       "Edit(../myapp-ios/**)",
       "Write(../myapp-ios/**)",
       "Bash(cd ../myapp-android *)",
-      "Bash(cd ../myapp-ios *)"
+      "Bash(cd ../myapp-ios *)",
+      "WebSearch",
+      "WebFetch(domain:developer.apple.com)",
+      "WebFetch(domain:support.apple.com)",
+      "WebFetch(domain:developer.android.com)",
+      "WebFetch(domain:source.android.com)",
+      "WebFetch(domain:support.google.com)"
     ],
     "deny": [
       "Edit(../myapp-backend/**)",
@@ -237,6 +246,8 @@ chmod +x setup.sh
 
 > **Bash `cd` allow scope (android / ios)**: the two new `Bash(cd ../myapp-android *)` / `Bash(cd ../myapp-ios *)` entries above pre-allow `cd ../myapp-android && ...` / `cd ../myapp-ios && ...` for the genuinely-cd-requiring cases (builds, tests, anything whose tool doesn't have a `--cwd`-style flag) without a permission prompt each time. This **does** widen the auto-allow surface for **any** bash command run after `cd` into those repos — including `curl`, `git push`, process spawning, etc. (`Edit` / `Write` only cover filesystem mutations; Bash carries the wider surface.) The trade is accepted because the spine workspace already needs to drive builds, tests, and git mutations in android/ios, and tightening this would push every build back behind a per-command prompt. If your threat model treats sibling-repo shell execution as elevated, drop the two `Bash(cd ...)` allows and accept the prompts on builds. Backend has **no** `cd` allow — keep all backend access through `git -C ../myapp-backend log …` (read-only). For **read-only** cross-repo bash (git log/diff/status, gh pr/issue view, ls/grep), prefer path-flag forms like `git -C ../myapp-ios log` or `gh pr view --repo myorg/myapp-ios <n>` over `cd` — the harness auto-allows those read-only forms for free; write subcommands prompt regardless of form.
 
+> **Web allows (docs-agent)**: `WebSearch` and the five `WebFetch(domain:…)` entries let docs-agent research the pre-design feasibility review (`/mobile-spine:feasibility`) without a prompt per page. The domains are docs-agent's evidence allowlist (`plugins/mobile-spine/agents/docs-agent.md` §Evidence rules) — official Apple / Android documentation, release notes, and store policy. Fetches to any other domain still prompt, which is intended: docs-agent may consult other pages as reference only. The allows are read-only network access, and docs-agent itself holds no file or shell tools, so it cannot write anything. Its excerpts do reach the main session (which can edit the platform repos) as quoted text; the feasibility command's Step 4 treats them as data, never as instructions. Existing workspaces: add these lines by hand (scaffold changes do not back-propagate) and restart Claude Code — otherwise every fetch prompts.
+
 ### 3-4. Isolation via the agent `tools` field (plugin-shipped — reference only)
 
 The `tools` field in each subagent's frontmatter restricts which tools the agent can call (simpler and stricter than path deny rules). The agents are plugin primitives — their `tools` frontmatter ships with the plugin and updates automatically via `/plugin marketplace update`. The current shipped defaults:
@@ -247,6 +258,7 @@ The `tools` field in each subagent's frontmatter restricts which tools the agent
 | pm-agent | `Read, Write, Edit, Bash, Grep, Glob, mcp__figma__*, mcp__figma-desktop__*` (covers both common Figma MCP namespaces) |
 | android-agent | `Read, Write, Edit, Bash, Grep, Glob` |
 | ios-agent | `Read, Write, Edit, Bash, Grep, Glob` |
+| docs-agent | `WebFetch, WebSearch` — no file, shell, or repo tools; read-only by construction |
 
 > **If your Figma MCP namespace is neither `mcp__figma__*` nor `mcp__figma-desktop__*`** (e.g. a custom server), MCP calls from `pm-agent` will be blocked. Override at workspace level: create `.claude/agents/pm-agent.md` with your namespace added to `tools`. Project-level agents take precedence over plugin-level. Cost: you opt out of plugin updates for `pm-agent`.
 
@@ -270,14 +282,15 @@ claude
 
 ## 4. Agent definition files
 
-The four agent definitions live in the **mobile-spine plugin**, under `plugins/mobile-spine/agents/`. They are served globally by the plugin — your workspace does **not** carry copies. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
+The five agent definitions live in the **mobile-spine plugin**, under `plugins/mobile-spine/agents/`. They are served globally by the plugin — your workspace does **not** carry copies. `/plugin marketplace update claude-code-mobile-spine` updates them in place.
 
 - `api-agent.md` — backend → spec extraction
 - `pm-agent.md` — design source (Figma / HTML) + spec → _tasks; case classification; pre-checks; issue dry-run
 - `android-agent.md` — Android implementation (two-phase: implement + diff / commit + Draft PR)
 - `ios-agent.md` — iOS implementation (two-phase, with optional per-repo Figma 5-step procedure)
+- `docs-agent.md` — OS / store-policy verdicts with fetched citations, for the pre-design feasibility review
 
-Each reads `.claude/mobile-spine.config.yaml` at every invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, `figmaMcpNamespace`, `copyrightHolder`).
+The four repo-facing agents each read `.claude/mobile-spine.config.yaml` at every invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, `figmaMcpNamespace`, `copyrightHolder`).
 
 > **Customizing an agent**: create `.claude/agents/<name>.md` in this workspace — project-level agents take precedence over plugin-level. Cost: you opt out of plugin updates for that agent.
 
@@ -496,6 +509,23 @@ user request
 > the per-repo CLAUDE.md Figma 5-step approval gates. android may finish while
 > ios is still waiting for an approval step.
 
+### Pre-design feasibility review (planning document, no design yet)
+
+Before design starts, check what the planning document asks the platforms for:
+
+```
+/mobile-spine:feasibility {planning document path} - {feature}
+  ├─ main session: extract platform premises (quoted requirement · premise · value source OS API / app / server)
+  ├─ docs-agent      ∥  OS / store-policy verdicts, cited from fetched official docs
+  ├─ android-agent   ∥  feasibility check mode: minSdk / targetSdk, declarations, what exists (read-only)
+  ├─ ios-agent       ∥  feasibility check mode: deployment target, entitlements, what exists (read-only)
+  └─ main session: merge → _context/feasibility/{feature}.md → hand to planning / design
+                                   │
+            (design arrives) /feat → pm-agent reads the review as an input
+```
+
+The review names platform APIs (its citations need them); `_tasks` still does not — pm-agent carries the constraints in by outcome, and unresolved verdicts become `## Open decisions`.
+
 ### Epic workflow (multi-phase features)
 
 A requirement too large for one PR cycle is an **epic** — it decomposes into
@@ -529,7 +559,7 @@ has closed out.
 
 ## 9. Phased adoption plan
 
-Don't deploy all four agents at once. Validate week by week.
+Don't deploy all the agents at once. Validate week by week.
 
 ### Week 0: pre-flight (mandatory before adoption)
 
@@ -540,6 +570,7 @@ Don't deploy all four agents at once. Validate week by week.
 | **Item 2**: `/remove-dir` available? | Officially unsupported — start a new session instead |
 | **Item 3**: settings.json `deny` blocks writes | api-agent attempts a write under `../myapp-backend/` (e.g. a temporary marker file) → the harness must reject the tool use |
 | **Item 4**: Figma MCP namespace | Confirm the actual `mcp__*` pattern via `/mcp` after MCP setup |
+| **Item 5**: docs-agent reads Apple docs (only if you use `/mobile-spine:feasibility`) | Ask docs-agent to quote the abstract of one Apple API page. It should fetch the `developer.apple.com/tutorials/data/documentation/….json` form without a permission prompt and return real body text — a title-only answer means the JSON rule did not apply; a prompt means the §3-3 web allows are missing |
 
 #### Week 0 verification snippets
 

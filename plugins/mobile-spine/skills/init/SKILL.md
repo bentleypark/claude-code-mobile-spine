@@ -10,7 +10,7 @@ Bootstrap a new mobile-spine workspace by interviewing the user, then writing th
 
 The static templates this skill consumes live next to this `SKILL.md` under `./templates/`. They are workspace-data only — CLAUDE.md, SETUP.md, README.md, LICENSE, .gitignore, .claude/settings.json, a thin `.claude/commands/feat.md` stub, _context/operations.md, plus `.gitkeep` files for empty directories.
 
-**Not scaffolded** — the four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) and the full `/feat` command logic are **plugin primitives** (live in `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`, served globally by the plugin). The workspace's `.claude/commands/feat.md` is a thin delegation stub. The agents read `.claude/mobile-spine.config.yaml` at invocation to pick up the workspace's org / app / baseBranch / figma / copyright values. **This means `/plugin marketplace update claude-code-mobile-spine` propagates agent + `/feat` improvements to every workspace automatically — without modifying any workspace-owned file.**
+**Not scaffolded** — the five subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent` / `docs-agent`) and the full `/feat` / `/feasibility` command logic are **plugin primitives** (live in `plugins/mobile-spine/agents/` and `plugins/mobile-spine/commands/`, served globally by the plugin). The workspace's `.claude/commands/feat.md` is a thin delegation stub. The agents read `.claude/mobile-spine.config.yaml` at invocation to pick up the workspace's org / app / baseBranch / figma / copyright values. **This means `/plugin marketplace update claude-code-mobile-spine` propagates agent + `/feat` improvements to every workspace automatically — without modifying any workspace-owned file.**
 
 ## Step 1 — Locate the templates directory
 
@@ -300,7 +300,7 @@ mkdir -p "<TARGET>/.claude/commands" \
          "<TARGET>/_context/api" "<TARGET>/_context/design" "<TARGET>/_tasks"
 ```
 
-> `.claude/agents/` is **not** created — the four subagents are plugin primitives, served from `plugins/mobile-spine/agents/`. If the user later wants to override an agent at workspace level, they can create `.claude/agents/` themselves and add a file; project-level agents take precedence over plugin-level.
+> `.claude/agents/` is **not** created — the subagents are plugin primitives, served from `plugins/mobile-spine/agents/`. If the user later wants to override an agent at workspace level, they can create `.claude/agents/` themselves and add a file; project-level agents take precedence over plugin-level.
 
 ### 4-2. Process every file in `$TEMPLATES_DIR`
 

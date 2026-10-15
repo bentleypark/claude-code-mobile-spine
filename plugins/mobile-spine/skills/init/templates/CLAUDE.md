@@ -12,6 +12,7 @@ code — only markdown specs, policies, and run notes.
 Outputs:
 - `_context/api/*.md` — backend API specs (api-agent reads ../myapp-backend/ → writes here)
 - `_context/design/{feature}/` — design assets per feature: Figma exports and/or HTML/CSS mockups (the recommended home for a `html` design source)
+- `_context/feasibility/{feature}.md` — pre-design feasibility review (`/mobile-spine:feasibility`): a planning document's platform premises judged against current OS docs (docs-agent) and both repos (platform agents' read-only feasibility mode). For planners and designers; pm-agent reads it later as an input.
 - `_tasks/{feature}.md` — the platform-neutral feature spec (pm-agent author; 1:1 with both repos' GitHub issues). Lean by design: ~150 lines, state-once, no per-repo code locations — those live in the GitHub issues, not here. See pm-agent.md §_tasks authoring discipline.
 - `_tasks/{epic}/` — a multi-phase feature (an **epic**) is a directory, not a flat file: `00-overview.md` (phase list + status) plus numbered `NN-{phase}.md` phase files, each a normal `_tasks` spec. See pm-agent.md §Epic tasks / §Epic decomposition.
 - `.claude/mobile-spine.config.yaml` — workspace-specific values (`org` / `app` / `baseBranch` / `figmaMcpNamespace` / `copyrightHolder`). Read by every agent at invocation. **Single source of truth** — if your branch convention or org changes, edit this file (no scattered substitutions across agent files).
@@ -29,7 +30,8 @@ mobile-spine/
 ├── _context/
 │   ├── operations.md                  # run log (retros, measurements, decisions)
 │   ├── api/{domain}.md                # api-agent output
-│   └── design/{feature}/              # design assets
+│   ├── design/{feature}/              # design assets
+│   └── feasibility/{feature}.md       # pre-design feasibility review (created on first run)
 ├── _tasks/
 │   ├── {feature}.md                   # pm-agent output — single-phase feature
 │   └── {epic}/                        # multi-phase feature (epic): 00-overview.md + NN-{phase}.md
@@ -40,9 +42,9 @@ mobile-spine/
     └── settings.json                  # isolation guard (deny rules)
 ```
 
-The four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) are **plugin primitives** — they live in `plugins/mobile-spine/agents/` (served globally by the plugin), not in your workspace's `.claude/agents/`. Plugin updates (`/plugin marketplace update claude-code-mobile-spine`) propagate agent improvements automatically. If you want to override an agent locally, create `.claude/agents/<name>.md` in this workspace — project-level agents take precedence over plugin-level.
+The five subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent` / `docs-agent`) are **plugin primitives** — they live in `plugins/mobile-spine/agents/` (served globally by the plugin), not in your workspace's `.claude/agents/`. Plugin updates (`/plugin marketplace update claude-code-mobile-spine`) propagate agent improvements automatically. If you want to override an agent locally, create `.claude/agents/<name>.md` in this workspace — project-level agents take precedence over plugin-level.
 
-## Subagent routing (4 agents — all plugin-provided)
+## Subagent routing (5 agents — all plugin-provided)
 
 | When | Subagent | Output / scope | Definition |
 |---|---|---|---|
@@ -50,8 +52,9 @@ The four subagents (`api-agent` / `pm-agent` / `android-agent` / `ios-agent`) ar
 | New feature _tasks | `pm-agent` | Writes `_tasks/*.md`. Reads `_context/api/` + a design source (Figma MCP or HTML mockup). Does not grep platform code | plugin: `plugins/mobile-spine/agents/pm-agent.md` |
 | Android implementation | `android-agent` | Modifies myapp-android only. Compose conventions | plugin: `plugins/mobile-spine/agents/android-agent.md` |
 | iOS implementation | `ios-agent` | Modifies myapp-ios only. SwiftUI; honors `myapp-ios/CLAUDE.md` over spine rules | plugin: `plugins/mobile-spine/agents/ios-agent.md` |
+| Pre-design feasibility (OS / store policy) | `docs-agent` | Cited verdicts from fetched official docs, returned inline. Web tools only — no file, shell, or repo access | plugin: `plugins/mobile-spine/agents/docs-agent.md` |
 
-Each agent reads `.claude/mobile-spine.config.yaml` at invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, etc.). Agent responsibilities, allowed paths, and pre-check procedures live in the plugin-side definition files. The table above is just an entry index.
+Each repo-facing agent reads `.claude/mobile-spine.config.yaml` at invocation to resolve workspace-specific values (`org`, `app`, `baseBranch`, etc.). Agent responsibilities, allowed paths, and pre-check procedures live in the plugin-side definition files. The table above is just an entry index.
 
 ## Phase handoff discipline (main-session view)
 
@@ -88,7 +91,7 @@ This is a self-check, not a gate — nothing blocks an invocation with a weak re
 
 **1. Phase 1 invocation prompt — include the git-baseline expectation.** The platform agent's §Phase 1 step 4 requires checking `git status --porcelain` (clean) and `git branch --show-current` (the integration branch — typically `develop`). The main session's Phase 1 prompt should explicitly remind the agent to run this baseline check first, so an abridged prompt ("phase 1 only — implement and report") does not silently skip step 4. On failure the agent stops and reports; the main session surfaces that report to the user and does not proceed without the user's resolution.
 
-  **Do not tell the agent not to create a branch.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` on the agent side, so a prompt like "phase 1 only — no commit, no branch, no PR" adds nothing except a contradiction with §Phase 1 step 4, which creates the feature branch. Cutting the branch *is* Phase 1. A run that must touch no git at all is a read-only mode (§Reverse-extraction / §Scope cross-check) — invoke it by asking for what it produces, not by listing restrictions.
+  **Do not tell the agent not to create a branch.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` on the agent side, so a prompt like "phase 1 only — no commit, no branch, no PR" adds nothing except a contradiction with §Phase 1 step 4, which creates the feature branch. Cutting the branch *is* Phase 1. A run that must touch no git at all is a read-only mode (§Reverse-extraction / §Scope cross-check / §Feasibility check) — invoke it by asking for what it produces, not by listing restrictions.
 
 **2. After receiving Phase 1's report — do not synthesize the Phase 2 trigger phrase.** The platform agent's §Phase 2 description requires the trigger phrase ("approved, proceed with commit + Draft PR") to originate from the user — even when the Phase 1 report shows no concerns (clean build / passing tests / trivial diff), and even when the user previously expressed a blanket pre-authorization ("approve all clean phases"). The main session's job after Phase 1 is to surface the report to the user and wait. Asking "shall we proceed to Phase 2?" is fine; synthesizing the trigger phrase from a clean report is prohibited.
 
@@ -124,9 +127,10 @@ Details in the plugin's `pm-agent.md` §Step 1 (`plugins/mobile-spine/agents/pm-
 |---|---|---|
 | `/feat [note]` | Workspace shortcut → delegates to `/mobile-spine:feat` | thin stub: `.claude/commands/feat.md` |
 | `/mobile-spine:feat [note]` | Interview for a new feature → invoke pm-agent | plugin: `plugins/mobile-spine/commands/feat.md` |
+| `/mobile-spine:feasibility [doc - feature]` | Pre-design feasibility review of a planning document → `_context/feasibility/{feature}.md` | plugin: `plugins/mobile-spine/commands/feasibility.md` |
 | `/mobile-spine:init` | (Re-)scaffold a workspace | plugin: `plugins/mobile-spine/commands/init.md` + `skills/init/SKILL.md` |
 
-`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. A rich one-line `/feat <note>` is parsed up front, so only the still-unanswered items are asked. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Three early checks can divert before the case interview: an epic-sized requirement routes to phased decomposition; a feature **already built on one platform but not the other** routes to cross-platform parity (the reference platform agent reverse-extracts a spec-term brief; pm-agent authors `_tasks` + a single issue for the lagging platform); and a change that **alters no backend endpoint** routes to client-only, skipping the spec pre-checks rather than being filed as case A and arguing them away. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
+`/feat` runs a 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) and constructs the pm-agent prompt. A rich one-line `/feat <note>` is parsed up front, so only the still-unanswered items are asked. The design source is Figma MCP, an HTML mockup, or none; spec source accepts "none — derive from design" for a design-only feature. Three early checks can divert before the case interview: an epic-sized requirement routes to phased decomposition; a feature **already built on one platform but not the other** routes to cross-platform parity (the reference platform agent reverse-extracts a spec-term brief; pm-agent authors `_tasks` + a single issue for the lagging platform); and a change that **alters no backend endpoint** routes to client-only, skipping the spec pre-checks rather than being filed as case A and arguing them away. If `_context/feasibility/{feature}.md` exists, `/feat` hands it to pm-agent automatically. Policy reminders (candidate-asset keywords only / case-A implementation-status check / no design source → no invention) fire automatically on each call.
 
 ## Auto-loaded channels
 
