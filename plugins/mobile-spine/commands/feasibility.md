@@ -41,7 +41,17 @@ Parse `$ARGUMENTS` first; ask only for what it does not supply, batched into one
 
 If `_tasks/{feature}.md` or `_tasks/{feature}/` already exists, the feature has been specified before this review. Read it for context, but **ground every verdict in the planning document and the fetched docs**: where the spec has already decided differently (a requirement dropped, a behavior changed), say so in that premise's `Notes:` line and leave the verdict alone.
 
-If `_context/feasibility/{feature}.md` already exists, this is a **re-review**: read it, and at Step 5 edit it in place (bump `Reviewed:`) rather than writing a second document.
+If `_context/feasibility/{feature}.md` already exists, this is a **re-review**: read it, and at Step 5 edit it in place (bump `Reviewed:`) rather than writing a second document. `_tasks` and the planner's decisions cite its premise ids, so a re-review keeps them meaning the same thing:
+
+- **Ids are stable.** At Step 2, match each premise to the existing one it continues — same requirement, same platform question — even if the requirement moved or was reworded, and keep its id. A reworded requirement gets its new quote and a `Notes:` entry `requirement changed ({date})`.
+- **New premises take the next free id**, never a gap and never a reused number.
+- **A premise whose requirement is gone** stays in `## Premises` as `withdrawn — requirement removed ({date})` in its platform cells, and its Evidence block is kept. It is not judged again and is not in the unresolved set. Never delete a row or renumber the rest.
+- **Every active premise is judged again** (Step 3). An active premise's Evidence line this run did not re-fetch keeps its old date and is flagged `stale evidence`. A withdrawn premise's Evidence is left as it is, unflagged.
+- **`Decision:` lines are the planner's, not yours** (§Step 5 `## Alternatives`). Keep each filled one exactly as written. Then, per entry:
+  - The premise is still `not possible` / `alternative` with the same verdict → nothing to add.
+  - Its verdict changed, including to `not judged` → add `verdict changed since decision — reconfirm` beneath the decision.
+  - It is now `withdrawn`, or no longer `not possible` / `alternative` → an **empty** `Decision:` entry is removed; a **filled** one stays, with `decision moot — {premise withdrawn | verdict now {verdict}}` beneath it. A moot entry is in neither the unresolved set nor pm-agent's input.
+  - A `reconfirm` marker from an earlier review stays. Only the planner removes it, by re-dating the `Decision:` line.
 
 ### HTML prototype input
 
@@ -64,7 +74,7 @@ For each, record:
 
 | Field | Content |
 |---|---|
-| `id` | `P1`, `P2`, … in document order |
+| `id` | `P1`, `P2`, … in document order on a first review; on a re-review, existing ids are kept (§Step 1) |
 | Requirement | the sentence from the planning document, **quoted**, with its section |
 | Premise | what must be true on the platform for the requirement to work, one line |
 | Value source | `OS API` (the platform supplies or decides it) / `app` (the app computes or stores it) / `server` (a backend decides it) |
@@ -142,7 +152,7 @@ Per premise and platform, the **final verdict** combines docs-agent's OS verdict
 
 **Flags carry through unchanged.** `unverified` and `beta` are flags on a verdict, not verdicts: keep docs-agent's verdict *with* its flags (`conditional, unverified`). A flagged verdict counts as **unresolved** — an open question, not a finding.
 
-**The unresolved set** — one list, used by the Summary, the Step 6 report and pm-agent: `unverified` / `beta` flags, `needs device check`, `not judged`, `not classified`, `repo not checked`, store-policy `not checked`, and `floor comparison not done`. Each entry counts once per premise and platform, wherever it is written — a platform cell, or the Evidence `Repo:` line for an `OS API` premise's `not classified` / `repo not checked`.
+**The unresolved set** — one list, used by the Summary, the Step 6 report and pm-agent: `unverified` / `beta` flags, `needs device check`, `not judged`, `not classified`, `repo not checked`, store-policy `not checked`, `floor comparison not done`, `stale evidence`, an empty `Decision:` line, and `verdict changed since decision — reconfirm`. The cell entries count once per premise and platform, wherever they are written — a platform cell, or the Evidence `Repo:` line for an `OS API` premise's `not classified` / `repo not checked`. The last three count once per premise and leave its verdict where it is: an undecided `not possible` is still counted, and still leads, as `not possible`.
 
 **`app` premises** (docs-agent did not judge them): the platform columns carry the repo classification (`already-present` / `to-build` / `adapt` / `n/a`) with `OS: n/a — app-owned`. If the platform agent's `Notes for docs check` shows the app-owned value still depends on an OS behavior (keeping its own copy needs background reads, say), add that as a new `OS API` premise and re-invoke docs-agent for it — do not judge it yourself.
 
@@ -160,7 +170,7 @@ Reviewed: {YYYY-MM-DD}
 Baseline: Android minSdk {N | unknown | repo not checked} / targetSdk {…} · iOS deployment target {N | unknown | repo not checked}
 
 ## Summary
-{Two to five lines. Lead with every `not possible` and every `conditional` that binds on the current floor — those change the design. A verdict flagged `unverified` does not lead, whatever its verdict: it goes in the unresolved line. Then counts per verdict, and separately the unresolved set (§Step 4), by category. Count per premise and platform; an entry in the unresolved set is counted there only, not also under its verdict. Name every `not judged` premise. Nothing else.}
+{Two to five lines. Lead with every `not possible` and every `conditional` that binds on the current floor — those change the design. A verdict flagged `unverified` does not lead, whatever its verdict: it goes in the unresolved line. Then counts per verdict, and separately the unresolved set (§Step 4), by category. Count per premise and platform; a cell entry in the unresolved set is counted there only, not also under its verdict (the per-premise entries are counted beside their verdict — §Step 4). Name every `not judged` premise. Nothing else.}
 
 ## Premises
 | ID | Requirement (quoted) | Premise | Source | Android | iOS | Store policy |
@@ -168,7 +178,11 @@ Baseline: Android minSdk {N | unknown | repo not checked} / targetSdk {…} · i
 | P1 | "{…}" (§<section>) | {…} | OS API | conditional — API 34+ | not possible | iOS: review risk |
 
 ## Alternatives
-{Only for premises with a `not possible` or `alternative` verdict: the documented mechanism that reaches the same user outcome, with its citation, and what it changes for the design. Omit the section if there are none.}
+{Only for premises with a `not possible` or `alternative` verdict: the documented mechanism that reaches the same user outcome, with its citation, and what it changes for the design. Omit the section if there are none. Each entry ends with a `Decision:` line, which **the planner fills in** — this command writes it empty and never fills or changes it:}
+
+### P{n} — {premise, one line}
+{mechanism, citation, design impact}
+Decision: {empty — for the planner: `adopt {alternative}` / `drop the requirement` / `other: …`, with who and when}
 
 ## Evidence
 ### P1
@@ -195,18 +209,18 @@ Baseline: Android minSdk {N | unknown | repo not checked} / targetSdk {…} · i
 
 Rules:
 - **Every OS-level claim in the document has a citation in `## Evidence` or is marked `unverified`.** No exceptions in the summary, either.
-- **No blank verdict cells.** For an `OS API` premise a platform cell holds a verdict (with its flags and any `floor comparison not done`), `n/a`, or `not judged — {reason}`. For an `app` premise it holds the repo classification, `not classified`, or `repo not checked`.
+- **No blank verdict cells.** For an `OS API` premise a platform cell holds a verdict (with its flags and any `floor comparison not done`), `n/a`, or `not judged — {reason}`. For an `app` premise it holds the repo classification, `not classified`, or `repo not checked`. A withdrawn premise's cells all read `withdrawn — requirement removed ({date})`.
 - **Cite Apple pages by their public URL.** docs-agent fetches the JSON form; in `## Evidence`, write the page a reader can open and keep the excerpt verbatim. Say so once at the top of `## Evidence`.
   - `developer.apple.com/tutorials/data/documentation/{path}.json` → `developer.apple.com/documentation/{path}`
   - `developer.apple.com/tutorials/data/design/human-interface-guidelines/{page}.json` → `developer.apple.com/design/human-interface-guidelines/{page}`
   - any other URL → exactly as docs-agent returned it
 - **Repo facts are by role** — no file paths or type names (the platform agents already return them that way). This document goes to planners, not engineers.
 - **Platform API names are allowed here**, in `## Evidence` and `## Alternatives`, because the citations need them. This is the difference from `_tasks`, which forbids them (pm-agent.md §_tasks authoring discipline) — pm-agent translates this review into outcomes, it does not copy it.
-- Re-review: edit sections in place and bump `Reviewed:`; do not append dated blocks. A premise not judged on this run shows `not judged`, never the previous verdict — the old one may stay in `Notes:` as `previous ({date}): …`.
+- Re-review: edit sections in place and bump `Reviewed:`; do not append dated blocks. Ids, `withdrawn` rows and `Decision:` lines follow §Step 1's re-review rules. A premise not judged on this run shows `not judged`, never the previous verdict — the old one may stay in `Notes:` as `previous ({date}): …`.
 
 ## Step 6 — Report
 
-In one message: the output path; the summary lines; the premises whose verdict is `not possible` or binding-`conditional`; the unresolved set by category (§Step 4), with every `not judged` premise named; any judge that failed (which docs-agent batch, or "iOS repo not checked — {reason}"); and the next step — "hand this to planning / design; when the design exists, run `/mobile-spine:feat {feature} - {domain}` with the **same feature key `{feature}`** — `/feat` finds this review by that key and hands it to pm-agent."
+In one message: the output path; the summary lines; the premises whose verdict is `not possible` or binding-`conditional`; the unresolved set by category (§Step 4), with every `not judged` premise named; any judge that failed (which docs-agent batch, or "iOS repo not checked — {reason}"); on a re-review, the ids added, withdrawn or reworded, and every filled `Decision:` now marked `reconfirm`; if any spec under `_tasks/` cites this review — search `_tasks/` for this review's path, not for the feature key, since `/feat` may have used a different one — which of the cited ids changed (withdrawn, reworded, verdict changed), naming the spec: it needs a pm-agent update; and the next step — "hand this to planning / design; when the design exists, run `/mobile-spine:feat {feature} - {domain}` with the **same feature key `{feature}`** — `/feat` finds this review by that key and hands it to pm-agent."
 
 ## Abort conditions
 
