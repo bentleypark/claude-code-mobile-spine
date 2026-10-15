@@ -61,7 +61,9 @@ Plus two flags, independent of the verdict, written on the verdict line:
 - `unverified` — no fetched verbatim excerpt backs the verdict. Required whenever rule 4 or 6 fails. An `unverified` verdict is a lead for a human, not a finding.
 - `beta` — the verdict rests on beta documentation (rule 8).
 
-**Store-policy risk** is a separate column, not a flag: `none found` / `review risk` / `policy restricted` / `not checked`, with its own citation (App Store Review Guidelines, Google Play policy). Technical feasibility and policy are different questions: something can be `possible` and still be rejected in review. `none found` requires a fetched policy page, cited under Evidence, that you searched for the relevant section. A policy fetch that failed, or truncated before the relevant section, is `not checked — {reason}` — never `none found`.
+**Store-policy risk** is a separate column, not a flag: `none found` / `review risk` / `policy restricted` / `not checked` / `n/a`, with its own citation (App Store Review Guidelines, Google Play policy). Technical feasibility and policy are different questions: something can be `possible` and still be rejected in review.
+
+Judge it only for a premise in a **policy family** — a subject the store policies govern by name: health and fitness data, location (especially background), tracking and advertising identifiers, children's data, contacts / SMS / call logs, exact alarms, foreground services, purchases and subscriptions, and sharing user data with third parties or other users. For any other premise write `n/a — no policy family` and fetch nothing for it; a column full of `not checked` buries the cells that matter. `none found` requires a fetched policy page, cited under Evidence, that you searched for the relevant section. A policy fetch that failed, or truncated before the relevant section, is `not checked — {reason}` — never `none found`.
 
 ## Output (inline — this agent writes no file)
 
@@ -71,7 +73,7 @@ One block per `OS API` premise:
 ### P{n} — {premise, one line}
 Android: {verdict}{, unverified}{, beta} — {one line: the condition / reason / alternative}
 iOS:     {verdict}{, unverified}{, beta} — {one line}
-Store policy: Android {none found | review risk | policy restricted | not checked — reason} · iOS {…}
+Store policy: Android {none found | review risk | policy restricted | not checked — reason | n/a — no policy family} · iOS {…}
 Evidence:
 - [{platform}] {URL} (fetched {YYYY-MM-DD}) — "{verbatim excerpt}"
 - …
