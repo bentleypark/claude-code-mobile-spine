@@ -32,7 +32,7 @@ Parse `$ARGUMENTS` first; ask only for what it does not supply, batched into one
 - **Planning document** — a path. Read it by type:
   - `.md` / `.txt` / `.pdf` → `Read` directly.
   - `.docx` → convert to text: `textutil -convert txt -stdout {path}` (macOS), else `pandoc -t plain {path}`. If neither is available, ask the user for a `.pdf` or `.md` export. Never guess at a document you could not read.
-  - **Check the converted text before using it.** A converter can succeed and still return nothing useful — a renamed `.doc`, a protected file, requirements held in text boxes or pasted as images. If the text is empty, far shorter than the document should be, or missing sections its own table of contents lists, try the other converter, then ask for a PDF export. Treat a document that still reads this way as unreadable (§Abort conditions).
+  - **Check the text you read, whatever the format.** A converter can succeed and still return nothing useful — a renamed `.doc`, a protected file, requirements held in text boxes or pasted as images — and a long PDF read in page ranges can stop short. If the text is empty, far shorter than the document should be, or missing sections its own table of contents lists, try the other converter (or read the remaining pages), then ask for a PDF export. Treat a document that still reads this way as unreadable (§Abort conditions).
   - Must **not** live inside `../myapp-android/`, `../myapp-ios/`, or `../myapp-backend/` — ask the user to copy it into the workspace instead (platform repos are their agents' territory).
 - **Feature key** — kebab-case, used for the output filename. Derive it from the document title when obvious and say so; ask only when it is not.
 - **Platforms** — default both. Narrow to one only when the user or the document says so.
@@ -87,9 +87,22 @@ Invoke every judge in **one message** (Agent tool) — the docs-agent batches an
 
 **Coverage check first — before merging anything.** A failed judge must not leave a complete-looking table.
 
-1. **docs-agent.** A reply whose first line is `FETCH BLOCKED` stops the review (§Abort conditions). Otherwise, for every batch, compare the ids you sent with its `Judged:` / `Not judged:` lines and its `### P{n}` blocks. A batch that errored, timed out or returned nothing counts as all of its ids `Not judged`. Re-invoke docs-agent **once**, for exactly the missing ids. Whatever is still missing gets `not judged — {reason}` in its platform columns: it counts as unresolved and is named in the Summary.
-2. **Evidence behind each verdict.** Each platform verdict without the `unverified` flag needs at least one Evidence line for that platform, on an allowlisted domain (docs-agent.md §Evidence rules 1), with a fetch date and a quoted excerpt. If one is missing, add `unverified (no evidence returned)` yourself. This is the only flag you may add, and you never remove one.
-3. **Platform agents.** Each must return a `Baseline:` line and a line for every `OS API` / `app` id. An agent that errored or returned nothing → that platform's repo column is `repo not checked`. A missing or `unknown` floor value → `floor unknown`. An id it did not classify → `not classified`. Never fill a floor from memory or a typical default.
+1. **docs-agent.** A reply containing a line that starts with `FETCH BLOCKED` — anywhere, not only first — stops the review (§Abort conditions). Otherwise, per batch:
+   - An id counts as **judged** only if it is listed in `Judged:` **and** has a complete `### P{n}` block: a line for each platform the premise names, a `Store policy:` line, and an `Evidence:` list.
+   - A reply without the three closing lines is **truncated**: every id without a complete block is `Not judged — reply truncated`. A batch that errored, timed out or returned nothing counts as all of its ids `Not judged`.
+   - Merge only the ids that batch was assigned. A block for another batch's id goes in that premise's `Notes:`, never into the verdict.
+   - Re-invoke docs-agent **once**, for exactly the ids not judged. Whatever is still missing gets `not judged — {reason}` in its platform columns.
+2. **Evidence behind each verdict.** Each platform verdict without the `unverified` flag needs at least one Evidence line for that platform, on an allowlisted domain (docs-agent.md §Evidence rules 1), with a fetch date and a quoted excerpt. If one is missing, add `unverified (no evidence returned)`. Two more checks of the same kind:
+   - a store-policy value other than `not checked` with no Evidence line from that platform's policy source → `not checked — no policy evidence returned`;
+   - an `alternative` with no Evidence line for the mechanism itself → add `unverified (no evidence for the alternative)`.
+
+   These three are the only changes you may make to docs-agent's output, and you never remove a flag.
+3. **Platform agents.** Each must return a `Baseline:` line and a line for every `OS API` / `app` id.
+   - An agent that errored, returned nothing, or returned `Baseline: repo not readable` → that platform is **`repo not checked`**.
+   - A missing or `unknown` floor value → **`floor unknown`**. When the agent reports several floors (one per module or target that ships the feature), compare against the lowest and name it.
+   - An id it did not list or could not classify → **`not classified`**.
+   - Where these go: for an `OS API` premise, docs-agent's verdict stays in the platform cell — when that verdict carries a version boundary, the floor rule below adds `floor comparison not done — {repo not checked | floor unknown}` — and the repo state goes on the Evidence `Repo:` line. Only for an `app` premise does the platform cell itself read `repo not checked` or `not classified`.
+   - Never fill a floor from memory or a typical default.
 
 Every re-invocation in this step (here and below) gets the same coverage check.
 
@@ -106,10 +119,12 @@ Per premise and platform, the **final verdict** combines docs-agent's OS verdict
 - docs-agent `not possible` → stays `not possible`, whatever the repo holds.
 - docs-agent `alternative` → stays `alternative`; the mechanism and its citation go to `## Alternatives`.
 - docs-agent `needs device check` → stays; the premise goes to `## Device checks` with docs-agent's question.
-- Repo `n/a` (no counterpart concept on this platform) → `n/a` only when docs-agent returned no verdict for that platform. A platform agent's `n/a` is a repo observation, not an OS judgment, so it never overrides a docs-agent verdict: record both and add an open question ("{platform} agent reports no counterpart; docs say {verdict}").
+- Repo `n/a` (no counterpart concept on this platform) → `n/a` only when docs-agent judged the premise and returned no line for that platform (the premise names only the other one). A `not judged` premise stays `not judged`. A platform agent's `n/a` is a repo observation, not an OS judgment, so it never overrides a docs-agent verdict: record both and add an open question ("{platform} agent reports no counterpart; docs say {verdict}").
 - The two layers disagree (a platform agent's `Notes for docs check` contradicts a cited verdict) → do not pick one; record both and route the premise to `## Device checks`.
 
-**Flags carry through unchanged.** `unverified` and `beta` are flags on a verdict, not verdicts: keep docs-agent's verdict *with* its flags (`conditional, unverified`). A flagged verdict counts as **unresolved** — the summary and pm-agent treat it as an open question, not a finding. So do `not judged`, `not classified`, and a store-policy `not checked`.
+**Flags carry through unchanged.** `unverified` and `beta` are flags on a verdict, not verdicts: keep docs-agent's verdict *with* its flags (`conditional, unverified`). A flagged verdict counts as **unresolved** — an open question, not a finding.
+
+**The unresolved set** — one list, used by the Summary, the Step 6 report and pm-agent: `unverified` / `beta` flags, `needs device check`, `not judged`, `not classified`, `repo not checked`, store-policy `not checked`, and `floor comparison not done`. Each entry counts once per premise and platform, wherever it is written — a platform cell, or the Evidence `Repo:` line for an `OS API` premise's `not classified` / `repo not checked`.
 
 **`app` premises** (docs-agent did not judge them): the platform columns carry the repo classification (`already-present` / `to-build` / `adapt` / `n/a`) with `OS: n/a — app-owned`. If the platform agent's `Notes for docs check` shows the app-owned value still depends on an OS behavior (keeping its own copy needs background reads, say), add that as a new `OS API` premise and re-invoke docs-agent for it — do not judge it yourself.
 
@@ -124,10 +139,10 @@ Do not re-judge the OS question yourself. If a docs-agent verdict looks wrong, s
 
 Source: {planning document filename} ({section range reviewed, or "whole document" — only if every section was read})
 Reviewed: {YYYY-MM-DD}
-Baseline: Android minSdk {N} / targetSdk {N} · iOS deployment target {N}
+Baseline: Android minSdk {N | unknown | repo not checked} / targetSdk {…} · iOS deployment target {N | unknown | repo not checked}
 
 ## Summary
-{Two to five lines. Lead with every `not possible` and every `conditional` that binds on the current floor — those change the design. A verdict flagged `unverified` does not lead, whatever its verdict: it goes in the unresolved line. Then counts per verdict, and separately the unresolved set: `unverified` / `beta` flags, `needs device check`, `not judged`, store-policy `not checked`, and `floor comparison not done`. Name every `not judged` premise. Nothing else.}
+{Two to five lines. Lead with every `not possible` and every `conditional` that binds on the current floor — those change the design. A verdict flagged `unverified` does not lead, whatever its verdict: it goes in the unresolved line. Then counts per verdict, and separately the unresolved set (§Step 4), by category. Count per premise and platform; an entry in the unresolved set is counted there only, not also under its verdict. Name every `not judged` premise. Nothing else.}
 
 ## Premises
 | ID | Requirement (quoted) | Premise | Source | Android | iOS | Store policy |
@@ -162,23 +177,23 @@ Baseline: Android minSdk {N} / targetSdk {N} · iOS deployment target {N}
 
 Rules:
 - **Every OS-level claim in the document has a citation in `## Evidence` or is marked `unverified`.** No exceptions in the summary, either.
-- **No blank verdict cells.** A platform column holds a verdict, `n/a`, `not judged — {reason}`, or `repo not checked`.
+- **No blank verdict cells.** For an `OS API` premise a platform cell holds a verdict (with its flags and any `floor comparison not done`), `n/a`, or `not judged — {reason}`. For an `app` premise it holds the repo classification, `not classified`, or `repo not checked`.
 - **Cite Apple pages by their public URL.** docs-agent fetches the JSON form; in `## Evidence`, write the page a reader can open and keep the excerpt verbatim. Say so once at the top of `## Evidence`.
   - `developer.apple.com/tutorials/data/documentation/{path}.json` → `developer.apple.com/documentation/{path}`
   - `developer.apple.com/tutorials/data/design/human-interface-guidelines/{page}.json` → `developer.apple.com/design/human-interface-guidelines/{page}`
   - any other URL → exactly as docs-agent returned it
 - **Repo facts are by role** — no file paths or type names (the platform agents already return them that way). This document goes to planners, not engineers.
 - **Platform API names are allowed here**, in `## Evidence` and `## Alternatives`, because the citations need them. This is the difference from `_tasks`, which forbids them (pm-agent.md §_tasks authoring discipline) — pm-agent translates this review into outcomes, it does not copy it.
-- Re-review: edit sections in place and bump `Reviewed:`; do not append dated blocks.
+- Re-review: edit sections in place and bump `Reviewed:`; do not append dated blocks. A premise not judged on this run shows `not judged`, never the previous verdict — the old one may stay in `Notes:` as `previous ({date}): …`.
 
 ## Step 6 — Report
 
-In one message: the output path; the summary lines; the premises whose verdict is `not possible` or binding-`conditional`; the count of `unverified`-flagged and `needs device check` premises; and the next step — "hand this to planning / design; when the design exists, run `/mobile-spine:feat {feature} - {domain}` with the **same feature key `{feature}`** — `/feat` finds this review by that key and hands it to pm-agent."
+In one message: the output path; the summary lines; the premises whose verdict is `not possible` or binding-`conditional`; the unresolved set by category (§Step 4), with every `not judged` premise named; any judge that failed (which docs-agent batch, or "iOS repo not checked — {reason}"); and the next step — "hand this to planning / design; when the design exists, run `/mobile-spine:feat {feature} - {domain}` with the **same feature key `{feature}`** — `/feat` finds this review by that key and hands it to pm-agent."
 
 ## Abort conditions
 
 - The planning document cannot be read (missing, unconvertible, or converted text that fails the §Step 1 check) → stop and ask; never review a summary of a document you have not read.
 - Step 2 finds **no** platform premise → first confirm the text you read has the document's sections (§Step 1 check); if it does not, the document is unreadable (above). Otherwise say so, write no file. The document has nothing for this review to check.
-- A docs-agent reply starts with `FETCH BLOCKED` → stop and write no review. Tell the user to add the web allows from SETUP.md §3-3 to `.claude/settings.json` and restart Claude Code.
+- A docs-agent reply contains a `FETCH BLOCKED` line → stop and write no review. Quote the blocked target and error verbatim. Tell the user to add the web allows from SETUP.md §3-3 to `.claude/settings.json` and restart Claude Code; if those allows are already present, say so and suggest checking the session's permission mode instead.
 - More than half of the `OS API` premises are still `not judged` after the §Step 4 retry → stop, write no review, and report which batches failed and why.
-- A platform agent reports its repo missing or unreadable, errors, or returns no baseline → continue with the other layers and mark that platform's repo column `repo not checked` (§Step 4 coverage check).
+- A platform agent reports its repo missing or unreadable, errors, or returns no baseline → continue with the other layers; that platform is `repo not checked` (§Step 4 coverage check says where it goes).

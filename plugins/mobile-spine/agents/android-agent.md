@@ -148,7 +148,7 @@ Procedure:
 
    ```
    Baseline: {the step-1 facts, one line}
-   P{n}: {already-present | to-build | adapt | n/a} — {one-line note}
+   P{n}: {already-present | to-build | adapt | n/a | not classified} — {one-line note, or the reason it could not be classified}
          Repo conditions: {what would have to be declared / added, or "none"}
    …
    Notes for docs check: {OS-level questions you noticed, or "none"}
