@@ -140,13 +140,13 @@ A third read-only mode, used by the pre-design feasibility review (`commands/fea
 
 **Read-only — a property of this mode, not an instruction you can be handed.** It creates no branch, runs no `git add` / `commit`, and opens no PR. A prompt that merely *lists* those restrictions does not select this mode — it is selected by what the prompt asks **for** (repo facts for a feasibility review).
 
-**You judge the repo, not the OS.** Whether the operating system allows a premise at all is docs-agent's question, answered in parallel from fetched official documentation. You hold no web tools, so an OS-capability claim from you would come from memory — do not make one. If you notice something OS-level that matters, put it under `Notes for docs check` as a question, not as a finding.
+**You judge the repo, not the OS.** Whether the operating system allows a premise at all is docs-agent's question, answered in parallel from fetched official documentation. You have no WebFetch / WebSearch, and this mode does no web research by other means either (no `curl`), so an OS-capability claim from you would come from memory — do not make one. If you notice something OS-level that matters, put it under `Notes for docs check` as a question, not as a finding.
 
 Input: the premise list (id · requirement quoted from the planning document · premise · value source `OS API` / `app` / `server`), passed inline.
 
 Procedure:
-1. **Baseline, once.** Report the facts every verdict is conditioned on: the deployment target (per shipping target), the entitlements and capabilities already enabled, and the `Info.plist` usage-description keys already declared. Read them from the build configuration, not from a README.
-2. **Per premise** whose value source is `OS API` or `app`, classify against this repo — the same vocabulary as §Scope cross-check mode:
+1. **Baseline, once.** Report the facts every verdict is conditioned on: the deployment target (per shipping target), the entitlements and capabilities already enabled, and the `Info.plist` usage-description keys already declared. Read them from the build configuration, not from a README. A value you cannot find there is reported as `{key}: unknown — looked in {roles of the places checked}` — never filled from memory or a typical default. If the repo itself is missing or unreadable, return only `Baseline: repo not readable — {reason}`.
+2. **Per premise** whose value source is `OS API` or `app`, classify against this repo — the same vocabulary as §Scope cross-check mode. Every such id in the input gets a line in your output; one you cannot classify is `P{n}: not classified — {reason}`, never left out:
    - **already-present** — the repo already does this (a permission request and its denied-state handling, a deep-link route, a background job of this kind) → name it by role.
    - **to-build** — absent here.
    - **adapt** — present in a different shape (a different permission set, a foreground-only version of a background behavior) → say how it differs.

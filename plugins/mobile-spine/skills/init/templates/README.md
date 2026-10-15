@@ -56,7 +56,7 @@ claude
 
 ```
 (optional, before design) /mobile-spine:feasibility {planning doc} - {feature}
-  └─ docs-agent ∥ android-agent ∥ ios-agent (read-only) → _context/feasibility/{feature}.md → planning / design
+  └─ docs-agent × N batches ∥ android-agent ∥ ios-agent (read-only mode) → _context/feasibility/{feature}.md → planning / design
 
 /feat [rich one-liner — parsed up front; only the still-unanswered items are asked]
   ├─ epic-sized requirement?          → phased decomposition (one phase authored at a time)

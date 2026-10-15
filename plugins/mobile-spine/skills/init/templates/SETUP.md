@@ -224,6 +224,7 @@ chmod +x setup.sh
       "WebFetch(domain:support.apple.com)",
       "WebFetch(domain:developer.android.com)",
       "WebFetch(domain:source.android.com)",
+      "WebFetch(domain:play.google)",
       "WebFetch(domain:support.google.com)"
     ],
     "deny": [
@@ -246,7 +247,7 @@ chmod +x setup.sh
 
 > **Bash `cd` allow scope (android / ios)**: the two new `Bash(cd ../myapp-android *)` / `Bash(cd ../myapp-ios *)` entries above pre-allow `cd ../myapp-android && ...` / `cd ../myapp-ios && ...` for the genuinely-cd-requiring cases (builds, tests, anything whose tool doesn't have a `--cwd`-style flag) without a permission prompt each time. This **does** widen the auto-allow surface for **any** bash command run after `cd` into those repos — including `curl`, `git push`, process spawning, etc. (`Edit` / `Write` only cover filesystem mutations; Bash carries the wider surface.) The trade is accepted because the spine workspace already needs to drive builds, tests, and git mutations in android/ios, and tightening this would push every build back behind a per-command prompt. If your threat model treats sibling-repo shell execution as elevated, drop the two `Bash(cd ...)` allows and accept the prompts on builds. Backend has **no** `cd` allow — keep all backend access through `git -C ../myapp-backend log …` (read-only). For **read-only** cross-repo bash (git log/diff/status, gh pr/issue view, ls/grep), prefer path-flag forms like `git -C ../myapp-ios log` or `gh pr view --repo myorg/myapp-ios <n>` over `cd` — the harness auto-allows those read-only forms for free; write subcommands prompt regardless of form.
 
-> **Web allows (docs-agent)**: `WebSearch` and the five `WebFetch(domain:…)` entries let docs-agent research the pre-design feasibility review (`/mobile-spine:feasibility`) without a prompt per page. The domains are docs-agent's evidence allowlist (`plugins/mobile-spine/agents/docs-agent.md` §Evidence rules) — official Apple / Android documentation, release notes, and store policy. Fetches to any other domain still prompt, which is intended: docs-agent may consult other pages as reference only. The allows are read-only network access, and docs-agent itself holds no file or shell tools, so it cannot write anything. Its excerpts do reach the main session (which can edit the platform repos) as quoted text; the feasibility command's Step 4 treats them as data, never as instructions. Existing workspaces: add these lines by hand (scaffold changes do not back-propagate) and restart Claude Code — otherwise every fetch prompts.
+> **Web allows (for docs-agent, workspace-wide)**: `WebSearch` and the six `WebFetch(domain:…)` entries let docs-agent research the pre-design feasibility review (`/mobile-spine:feasibility`) without a prompt per page. `settings.json` cannot scope an allow to one agent, so they apply to the main session and every agent in this workspace; the platform agents simply hold no web tools. The domains are docs-agent's evidence allowlist (`plugins/mobile-spine/agents/docs-agent.md` §Evidence rules) — official Apple / Android documentation, release notes, and store policy. Fetches to any other domain still prompt, which is intended: docs-agent may consult other pages as reference only. The allows are read-only network access, and docs-agent itself holds no file or shell tools, so it cannot write anything. Two limits are prompt-level, not tool-enforced: keeping planning-document text out of search queries (docs-agent.md §Evidence rules 2), and treating fetched text as data. Its excerpts do reach the main session (which can edit the platform repos) as quoted text; the feasibility command's Step 4 treats them as data, never as instructions. Existing workspaces: add these lines by hand (scaffold changes do not back-propagate) and restart Claude Code — otherwise every fetch prompts, and a background docs-agent is denied outright (the review then stops with `FETCH BLOCKED`).
 
 ### 3-4. Isolation via the agent `tools` field (plugin-shipped — reference only)
 
@@ -258,7 +259,7 @@ The `tools` field in each subagent's frontmatter restricts which tools the agent
 | pm-agent | `Read, Write, Edit, Bash, Grep, Glob, mcp__figma__*, mcp__figma-desktop__*` (covers both common Figma MCP namespaces) |
 | android-agent | `Read, Write, Edit, Bash, Grep, Glob` |
 | ios-agent | `Read, Write, Edit, Bash, Grep, Glob` |
-| docs-agent | `WebFetch, WebSearch` — no file, shell, or repo tools; read-only by construction |
+| docs-agent | `WebFetch, WebSearch` — no file, shell, or repo tools, so it cannot write anything |
 
 > **If your Figma MCP namespace is neither `mcp__figma__*` nor `mcp__figma-desktop__*`** (e.g. a custom server), MCP calls from `pm-agent` will be blocked. Override at workspace level: create `.claude/agents/pm-agent.md` with your namespace added to `tools`. Project-level agents take precedence over plugin-level. Cost: you opt out of plugin updates for `pm-agent`.
 
@@ -516,13 +517,16 @@ Before design starts, check what the planning document asks the platforms for:
 ```
 /mobile-spine:feasibility {planning document path} - {feature}
   ├─ main session: extract platform premises (quoted requirement · premise · value source OS API / app / server)
-  ├─ docs-agent      ∥  OS / store-policy verdicts, cited from fetched official docs
-  ├─ android-agent   ∥  feasibility check mode: minSdk / targetSdk, declarations, what exists (read-only)
-  ├─ ios-agent       ∥  feasibility check mode: deployment target, entitlements, what exists (read-only)
-  └─ main session: merge → _context/feasibility/{feature}.md → hand to planning / design
+  ├─ docs-agent × N   ∥  OS / store-policy verdicts, cited from fetched official docs (batches of ≤ 8 premises, by topic)
+  ├─ android-agent    ∥  feasibility check mode: minSdk / targetSdk, declarations, what exists (read-only mode)
+  ├─ ios-agent        ∥  feasibility check mode: deployment target, entitlements, what exists (read-only mode)
+  ├─ main session: `server` premises checked against _context/api/
+  └─ main session: coverage check → merge → _context/feasibility/{feature}.md → hand to planning / design
                                    │
             (design arrives) /feat → pm-agent reads the review as an input
 ```
+
+Expect several docs-agent runs at once — one per batch. The platform agents' read-only mode is prompt-level (they keep their usual tools); docs-agent's is its tool surface. Input formats, re-review and abort cases: `plugins/mobile-spine/commands/feasibility.md`.
 
 The review names platform APIs (its citations need them); `_tasks` still does not — pm-agent carries the constraints in by outcome, and unresolved verdicts become `## Open decisions`.
 

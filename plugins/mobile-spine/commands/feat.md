@@ -37,7 +37,7 @@ Before Item 1, read `$ARGUMENTS` once and extract whatever the user already supp
 
 Then **auto-detect the design source from disk**: if `_context/design/{feature}/` exists and holds `*.html` / `*.css`, treat the design source as `html` at that path **without asking** (Item 4 becomes a one-line confirmation at most).
 
-Likewise **auto-detect a feasibility review**: if `_context/feasibility/{feature}.md` exists (written before design by `/mobile-spine:feasibility`), pass its path to pm-agent on every path below (each template carries a `Feasibility review` line) — no question needed. pm-agent reads it as an input (pm-agent.md §Feasibility review). If the exact path is missing but `_context/feasibility/` holds other reviews, list them and ask once whether one of them is this feature's — the two commands can derive different keys, and a silent miss drops the review.
+Likewise **auto-detect a feasibility review**: if `_context/feasibility/{feature}.md` exists (written before design by `/mobile-spine:feasibility`), pass its path to pm-agent on every path below (each template carries a `Feasibility review` line) — no question needed. pm-agent reads it as an input (pm-agent.md §Feasibility review). If the exact path is missing but `_context/feasibility/` holds other reviews, list them and ask once whether one of them is this feature's — the two commands can derive different keys, and a silent miss drops the review. Whichever file is settled on — the exact match or the one the user picked — is the **resolved review path**; the templates carry that path, never a path rebuilt from `{feature}`.
 
 Carry these forward; an item whose value is already known is **not** re-asked. After the pre-pass, if more than one independent item still needs input, ask them together in a **single `AskUserQuestion`** (up to 4 questions) instead of one prompt per turn. Keep ordering only for a real dependency — Item 3 (spec source) depends on the case from Item 2, so those stay sequential; Item 4 (design source) is independent and can share a screen with Item 2.
 
@@ -217,7 +217,7 @@ Plug the collected answers (from the §Pre-pass and any follow-up prompts) into 
 {case A: spec — `_context/api/{domain}.md` (Updated: {time})}
 {case D: backend not built — pm-agent prints the deferred message and stops}
 {Design source — item 4: figma multi-select / figma nodeIds {list} / html {path} / none}
-{Feasibility review — `_context/feasibility/{feature}.md` if the §Pre-pass found one; omit the line otherwise}
+{Feasibility review — the resolved review path if the §Pre-pass found one; omit the line otherwise}
 
 ## Procedure
 Follow pm-agent.md execution order (steps 1~10):
@@ -261,7 +261,7 @@ Do NOT author phases 2+ — those are authored just-in-time on later
 next-phase invocations.
 
 ## Notes
-- Feasibility review: {`_context/feasibility/{feature}.md` if the §Pre-pass found one — it covers the whole epic; each phase carries in the verdicts its scope touches. Omit the line otherwise}
+- Feasibility review: {the resolved review path if the §Pre-pass found one — it covers the whole epic; each phase carries in the verdicts its scope touches. Omit the line otherwise}
 - Case classification, spec source, and design source are decided per phase
   when that phase is authored — not upfront. Phase 1's full-mode run does
   its own Step 1–9 pre-checks.
@@ -282,7 +282,7 @@ When Item 1d routed here, invoke pm-agent (Agent tool, `subagent_type`: `pm-agen
 - The change alters no backend endpoint, or leaves the set of called endpoints unchanged: {one line — what makes it client-only}
 - Spec source: none consulted. Do not open `_context/api/{domain}.md`; do not run the staleness or scope pre-checks.
 - Design source: the shipped screen. There is no new design artifact, and none is needed.
-- {Feasibility review — `_context/feasibility/{feature}.md` if the §Pre-pass found one; omit the line otherwise}
+- {Feasibility review — the resolved review path if the §Pre-pass found one; omit the line otherwise}
 
 ## Procedure
 Run pm-agent.md §client-only handling: skip Steps 2–3, run Step 6 (the implementation-status
@@ -313,7 +313,7 @@ When the parity check (Item 1c) routed here, invoke pm-agent (Agent tool, `subag
 ## Scope reconciliation (lagging = {lagging platform}, cross-checked — transient)
 {paste the lagging platform agent's scope reconciliation from Item 1c step 4, verbatim}
 
-{## Feasibility review — `_context/feasibility/{feature}.md` if the §Pre-pass found one; omit the section otherwise}
+{## Feasibility review — the resolved review path if the §Pre-pass found one; omit the section otherwise}
 
 ## Procedure
 Run §Cross-platform parity in pm-agent.md (full mode, Steps 1–9):

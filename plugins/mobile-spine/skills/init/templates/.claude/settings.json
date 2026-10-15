@@ -16,6 +16,7 @@
       "WebFetch(domain:support.apple.com)",
       "WebFetch(domain:developer.android.com)",
       "WebFetch(domain:source.android.com)",
+      "WebFetch(domain:play.google)",
       "WebFetch(domain:support.google.com)"
     ],
     "deny": [
