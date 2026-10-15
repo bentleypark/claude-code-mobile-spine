@@ -8,7 +8,7 @@
     {
       "name": "mobile-spine",
       "source": "./plugins/mobile-spine",
-      "description": "Scaffold a mobile-spine workspace (Android + iOS + Backend in separate repos) with four specialized Claude Code subagents."
+      "description": "Scaffold a mobile-spine workspace (Android + iOS + Backend in separate repos) with five specialized Claude Code subagents."
     }
   ]
 }

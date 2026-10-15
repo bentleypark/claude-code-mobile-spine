@@ -2,9 +2,10 @@
 
 A **Claude Code** scaffold for mobile teams whose Android, iOS, and Backend
 live in **separate repos**. A lightweight meta-repo sits next to the three
-platform repos and coordinates four specialized subagents, a case
+platform repos and coordinates five specialized subagents, a case
 classification flow, three pre-checks, and a `/feat` slash-command interview
-that drives the whole pipeline end to end.
+that drives the whole pipeline end to end — plus a pre-design feasibility
+review that checks a planning document against the platforms before design starts.
 
 Install the bundled Claude Code plugin and run `/mobile-spine:init`: a
 6-question interview writes a fully customized spine in one command.
@@ -13,13 +14,15 @@ Install the bundled Claude Code plugin and run `/mobile-spine:init`: a
 
 ## What you get
 
-- **Four subagents** with explicit responsibilities and allowed paths:
+- **Five subagents** with explicit responsibilities and allowed paths:
   - `api-agent` — reads the backend, writes `_context/api/{domain}.md`
   - `pm-agent` — reads a design source (Figma MCP or an HTML mockup) + API specs, writes `_tasks/{feature}.md`, opens GitHub issues per platform
   - `android-agent` — implements in `../myapp-android/`; also a read-only **parity mode** (reverse-extraction + scope cross-check) when porting a feature from the other platform
   - `ios-agent` — implements in `../myapp-ios/`; same read-only parity mode
+  - `docs-agent` — judges planning-document premises against current official Apple / Android docs and store policy, citing each verdict; web tools only, so it cannot write a file or touch a repo
 - **Isolation model** — `settings.json` `deny` should block writes to the backend repo (verify in week 0 — see SETUP.md §9 Item 3); each agent's `description` + per-agent allowed-paths in the prompt body keep android↔ios mutually isolated (prompt-level — relies on the model's cooperation, not a hard technical block).
 - **`/feat` slash command** — 4-item interview (feature + domain / case auto-detect + confirm / spec source / design source) → pm-agent prompt auto-built. A rich one-line `/feat <note>` is parsed up front (one-shot), so only the still-unanswered items are asked. Spec source accepts "none — derive from design" for a design-only (no requirements doc) feature. Three early checks divert before the case interview: an epic-sized requirement routes to phased decomposition, a feature **already built on one platform but not the other** routes to cross-platform parity, and a change that **alters no backend endpoint** routes to client-only.
+- **`/mobile-spine:feasibility` — pre-design feasibility review** — input is a planning document, no design needed. The main session extracts every platform premise (permission state, background execution, deep links, data window, …); docs-agent judges each against fetched official docs while android-agent / ios-agent report version floors and what already exists (read-only mode — prompt-level). The merged review — verdicts, citations, device-check questions, comparable-app checklist — goes to `_context/feasibility/{feature}.md` for planners and designers, and pm-agent reads it later as an input.
 - **Cross-platform parity flow** — when a feature already shipped on one platform (often outside the spine), the reference platform agent reverse-extracts a platform-neutral, spec-term brief; pm-agent authors `_tasks` from it and opens a GitHub issue for the **lagging platform only**. pm-agent still never reads platform source — the brief comes from the platform agent.
 - **Case classification** for every new feature:
   - A: existing endpoint / B: new endpoint in existing domain / C: new domain / D: backend not built
@@ -99,8 +102,8 @@ claude-code-mobile-spine/
     └── mobile-spine/
         ├── .claude-plugin/
         │   └── plugin.json                         ← plugin manifest
-        ├── agents/{api,pm,android,ios}-agent.md    ← plugin primitives (the four subagents)
-        ├── commands/{init,feat}.md                 ← plugin primitives (slash commands)
+        ├── agents/{api,pm,android,ios,docs}-agent.md  ← plugin primitives (the five subagents)
+        ├── commands/{init,feat,feasibility}.md     ← plugin primitives (slash commands)
         └── skills/
             └── init/
                 ├── SKILL.md                        ← the interactive skill

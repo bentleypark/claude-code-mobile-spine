@@ -43,9 +43,10 @@ claude
 | `SETUP.md` | Phased adoption guide (week 0 verification → week 3 full rollout). |
 | `.claude/settings.json` | Isolation guard: `deny` should block writes to `../myapp-backend/` (verify in week 0 — see SETUP.md §9 Item 3). |
 | `.claude/mobile-spine.config.yaml` | Workspace values (`org`, `app`, `baseBranch`, `figmaMcpNamespace`, `copyrightHolder`). Read by every agent at invocation — edit this if your branch convention or org changes. |
-| `.claude/commands/feat.md` | Thin delegation stub for `/feat` — forwards to `/mobile-spine:feat`. The real interview logic + the four subagents (api / pm / android / ios) live in the mobile-spine plugin (`plugins/mobile-spine/agents/`, `plugins/mobile-spine/commands/`) and auto-update via `/plugin marketplace update`. |
+| `.claude/commands/feat.md` | Thin delegation stub for `/feat` — forwards to `/mobile-spine:feat`. The real interview logic + the five subagents (api / pm / android / ios / docs) live in the mobile-spine plugin (`plugins/mobile-spine/agents/`, `plugins/mobile-spine/commands/`) and auto-update via `/plugin marketplace update`. |
 | `_context/api/{domain}.md` | Backend API specs authored by api-agent. |
 | `_context/design/{feature}/` | Per-feature Figma assets (when MCP not connected). |
+| `_context/feasibility/{feature}.md` | Pre-design feasibility review of a planning document (`/mobile-spine:feasibility`) — for planners and designers; pm-agent reads it later. Created on first run. |
 | `_context/operations.md` | Run log: weekly retros, measurements, decisions. |
 | `_tasks/{feature}.md` | Per-feature implementation specs (pm-agent author; 1:1 with GitHub issues in both platform repos). |
 
@@ -54,6 +55,9 @@ claude
 ## Daily workflow
 
 ```
+(optional, before design) /mobile-spine:feasibility {planning doc} - {feature}
+  └─ docs-agent × N batches ∥ android-agent ∥ ios-agent (read-only mode) → _context/feasibility/{feature}.md → planning / design
+
 /feat [rich one-liner — parsed up front; only the still-unanswered items are asked]
   ├─ epic-sized requirement?          → phased decomposition (one phase authored at a time)
   ├─ already built on one platform?   → cross-platform parity (reference brief → lagging-platform issue only)

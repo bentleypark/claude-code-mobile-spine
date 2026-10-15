@@ -134,6 +134,38 @@ Procedure:
 
 This is an *estimate from reading*, not implementation — the deeper file-level inventory (reuse / extend / new / remove) still runs at implementation time (Phase 1 §Candidate assets). This cross-check just gets the issue's scope right up front. Like §Reverse-extraction, it writes nowhere; the reconciliation lives only in your returned message.
 
+## Feasibility check mode (pre-design — read-only)
+
+A third read-only mode, used by the pre-design feasibility review (`commands/feasibility.md`, `/mobile-spine:feasibility`). Triggered when the prompt asks for **repo facts against a list of platform premises** extracted from a planning document. There is no design and no `_tasks` yet; the goal is to tell planners and designers, before design starts, which requirements this repo can meet as-is, which need work, and which hinge on a version floor.
+
+**Read-only — a property of this mode, not an instruction you can be handed.** It creates no branch, runs no `git add` / `commit`, and opens no PR. A prompt that merely *lists* those restrictions does not select this mode — it is selected by what the prompt asks **for** (repo facts for a feasibility review).
+
+**You judge the repo, not the OS.** Whether the operating system allows a premise at all is docs-agent's question, answered in parallel from fetched official documentation. You have no WebFetch / WebSearch, and this mode does no web research by other means either (no `curl`), so an OS-capability claim from you would come from memory — do not make one. If you notice something OS-level that matters, put it under `Notes for docs check` as a question, not as a finding.
+
+Input: the premise list (id · requirement quoted from the planning document · premise · value source `OS API` / `app` / `server`), passed inline.
+
+Procedure:
+1. **Baseline, once.** Report the facts every verdict is conditioned on: the deployment target (per shipping target), the entitlements and capabilities already enabled, and the `Info.plist` usage-description keys already declared. Read them from the build configuration, not from a README. A value you cannot find there is reported as `{key}: unknown — looked in {roles of the places checked}` — never filled from memory or a typical default. If the repo itself is missing or unreadable, return only `Baseline: repo not readable — {reason}`.
+2. **Per premise** whose value source is `OS API` or `app`, classify against this repo — the same vocabulary as §Scope cross-check mode. Every such id in the input gets a line in your output; one you cannot classify is `P{n}: not classified — {reason}`, never left out:
+   - **already-present** — the repo already does this (a permission request and its denied-state handling, a deep-link route, a background job of this kind) → name it by role.
+   - **to-build** — absent here.
+   - **adapt** — present in a different shape (a different permission set, a foreground-only version of a background behavior) → say how it differs.
+   - **n/a** — no counterpart on this platform.
+
+   And list the **repo conditions** the premise would need that are not in place yet: an entitlement or capability, a usage-description key, a background mode, a raised deployment target.
+3. `server` premises: pass through untouched — they belong to api-agent / the backend.
+4. Output inline, by role (no file paths / type names — same rule as §Reverse-extraction mode):
+
+   ```
+   Baseline: {the step-1 facts, one line}
+   P{n}: {already-present | to-build | adapt | n/a | not classified} — {one-line note, or the reason it could not be classified}
+         Repo conditions: {what would have to be declared / added, or "none"}
+   …
+   Notes for docs check: {OS-level questions you noticed, or "none"}
+   ```
+
+Like the other read-only modes, this writes nowhere; the result lives only in your returned message.
+
 ## When pm-agent has produced _tasks
 If your per-repo CLAUDE.md defines a 5-step procedure:
 - Steps 1 (list spec) and 2 (map) are covered by _tasks. You may skip them.
@@ -143,7 +175,7 @@ If invoked without _tasks: run the full 5-step procedure from step 1.
 
 ## Execution order
 
-In the default **implement** flow, this agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR. (§Reverse-extraction mode above is the separate, read-only alternative.)
+In the default **implement** flow, this agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR. (§Reverse-extraction mode, §Scope cross-check mode, and §Feasibility check mode above are the separate, read-only alternatives.)
 
 ### Phase 1 (implement + review report)
 1. Read `_tasks/{feature}.md` (note the issue number).
@@ -156,7 +188,7 @@ In the default **implement** flow, this agent is invoked in **two phases** — p
    - `git status --porcelain` (working tree must be empty) and `git branch --show-current` (must be the repo's main integration branch — typically `develop`, or per-repo convention).
    - If either check fails (uncommitted changes / wrong starting branch), **stop and report to the user** with the observed state — list the dirty files (every `git status --porcelain` line counts, including untracked `??` entries) or the current branch — and ask how to proceed. Typical options: (a) stash unrelated changes and proceed from a clean `develop`, (b) abandon this Phase 1 and re-invoke after the user resolves their working tree, (c) explicit override to proceed on the current non-`develop` branch *as-is* with whatever uncommitted state it carries (rare — only when the user knowingly authored that state and confirms in-line). **Do NOT create or check out a new branch on top of stale unrelated changes** — that pulls them into the new branch and contaminates Phase 2's diff.
    - Once the baseline is clean, from `develop`, create and check out the feature branch (e.g. `feat/issue-{n}-{feature}`).
-   - **Branch creation is intrinsic to Phase 1 — prompt wording does not waive it.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` (step 7), so an instruction like "no commit, no branch, no PR" restates Phase 1's own rules in two parts of three; only the "no branch" clause contradicts this step. Do not settle that contradiction on your own. Never implement in the base branch's working tree, and never read such a phrase as selecting a read-only mode — §Reverse-extraction mode and §Scope cross-check mode are selected by what a prompt asks **for** (a parity brief, a scope reconciliation), not by the restrictions it lists. When an implement prompt tells you not to create a branch, **stop and ask the user** which was meant.
+   - **Branch creation is intrinsic to Phase 1 — prompt wording does not waive it.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` (step 7), so an instruction like "no commit, no branch, no PR" restates Phase 1's own rules in two parts of three; only the "no branch" clause contradicts this step. Do not settle that contradiction on your own. Never implement in the base branch's working tree, and never read such a phrase as selecting a read-only mode — §Reverse-extraction mode, §Scope cross-check mode, and §Feasibility check mode are selected by what a prompt asks **for** (a parity brief, a scope reconciliation, repo facts for a feasibility review), not by the restrictions it lists. When an implement prompt tells you not to create a branch, **stop and ask the user** which was meant.
 5. If the per-repo CLAUDE.md defines a Figma 5-step procedure, run it with explicit per-step approval. UI-unchanged features may pass steps 1~3 as "no UI change confirmed".
 6. **Implement** — and write unit tests for the spec-relevant changes (entry point / gate / handler / each new branch in the spec's flow or matrix). Use the platform's testing framework (XCTest, or whatever `../myapp-ios/` actually uses). Coverage target: each new branch in the spec's flow or matrix has at least one test.
 7. **Build + test verification, then stop after a diff summary report**:
