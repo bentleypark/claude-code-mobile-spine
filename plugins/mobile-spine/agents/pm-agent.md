@@ -310,7 +310,7 @@ Before writing `_tasks/{feature}.md`, create issues in both platform repos. **De
 
 Reviews of a spec compare documents with each other. None of them asks what an implementer would actually draw if they followed each sentence literally. Until this gate, the first place anyone asked that was a platform agent's Phase 1 plan, after the issues already existed. This gate asks it while the bodies are still drafts.
 
-**When it runs.** It runs wherever Step 5 runs: full mode, every epic phase, the parity path, client-only. The condition is structural: it runs when `## Screens` / `## Components` hold real content. It is skipped when they are empty or carry only the `none` placeholder line. Case (A / B / C / client-only) does not decide it. Case is an endpoint axis, and a one-line case-A change can add a displayed number.
+**When it runs.** It runs wherever Step 5 runs: full mode, every epic phase, the parity path, client-only. The condition is structural: it runs when `## Screens` / `## Components` hold real content. It is skipped when they are empty or carry only the `none` placeholder line. For an incremental edit, the trigger is instead the edited lines themselves (§Invocation modes), and it runs on that edit's delta. Case (A / B / C / client-only) does not decide it. Case is an endpoint axis, and a one-line case-A change can add a displayed number.
 
 **Who runs it.** Not pm-agent. The walkthrough substitutes values into the *target repo's* existing components and formatters, and you do not read platform repos (§Codebase inventory split). You also wrote the drafts, so a self-read would only repeat your own interpretation. The caller (the `/feat` command or the main session) runs android-agent and ios-agent in parallel in their read-only **Spec walkthrough mode**. On the parity path it runs the lagging platform only, because the reference's shipped behavior is the spec there.
 
@@ -320,8 +320,8 @@ Reviews of a spec compare documents with each other. None of them asks what an i
 
    ```
    Spec walkthrough: pending
-   Caller: run android-agent / ios-agent (parity: the lagging platform only) in Spec walkthrough mode, in parallel. Give each one its platform's draft body, the draft _tasks, and the design source below. Then re-invoke pm-agent with this whole block plus each walkthrough result, verbatim.
-   Run state: {invocation pattern — full | epic decomposition, phase 1 of {epic} | epic next-phase, phase N of {epic} | parity, reference {platform}}; case {X}; pre-check results {one line each}; answers already given by the user {Step 6 and any ping, verbatim}
+   Caller: run android-agent / ios-agent in Spec walkthrough mode, in parallel, only for the platforms this block has a draft issue body section for (parity: the lagging platform only). Give each one its platform's draft body, the draft _tasks, the design source below, and on an incremental edit the --- delta --- section. Then re-invoke pm-agent with this whole block plus each walkthrough result, verbatim.
+   Run state: {invocation pattern — full | epic decomposition, phase 1 of {epic} | epic next-phase, phase N of {epic} | parity, reference {platform} | incremental — edit set {as the prompt named it}}; case {X}; pre-check results {one line each}; answers already given by the user {Step 6 and any ping, verbatim}
    Design source: {html {path} | figma, render only — per node: {id} → {png written this run} | {id} → not exported — {reason} | parity brief (section below) | shipped screen (client-only — baseline only) | none}
    --- draft _tasks ---
    {full draft}
@@ -329,6 +329,8 @@ Reviews of a spec compare documents with each other. None of them asks what an i
    {full draft, one section per body in scope}
    --- design source: parity brief ---
    {parity path only: the brief, verbatim}
+   --- delta ---
+   {incremental only: each changed line, before → after, by section and issue body}
    ```
 
    If Step 6 has already been answered "already implemented" by this point (the `/feat` client-only template runs Step 6 first), no issues will be created. Skip the gate and say `Spec walkthrough: skipped — no issues to create`.
@@ -345,13 +347,13 @@ Reviews of a spec compare documents with each other. None of them asks what an i
 
    Never resolve an item yourself by picking the value the agent reported as the repo's current behavior. What the repo does now is the walkthrough's evidence, not a decision. A long `## Open decisions` after the fold is the length budget's own signal that the spec is not decided yet (§_tasks authoring discipline). The user resolves it. Do not trim it to fit.
 
-   Then print the dry-run with one summary line above the bodies, one segment per platform walked (only the lagging one on the parity path), and continue that run's remaining steps:
+   Then print the dry-run with one summary line above the bodies, one segment per platform walked (only the lagging one on the parity path), and continue that run's remaining steps. For an incremental edit, there is no dry-run: apply the edits and report the summary line (§Invocation modes).
 
 ```
 Spec walkthrough: android {n} open · {k} diverges; ios {m} open · {j} diverges → ## Open decisions {item numbers}
 ```
 
-When a platform's walkthrough opened with a design-source line (`not read`, `partly read`, or `render only — values not checked`), carry that whole line into its segment: `ios {m} open · {j} diverges ({the walkthrough's design-source line, verbatim})`. A count with no design check behind it must not read as a clean result. When the gate did not apply, the line reads `Spec walkthrough: skipped — {no UI sections | no issues to create}`.
+When a platform's walkthrough opened with a design-source line (`not read`, `partly read`, or `render only — values not checked`), carry that whole line into its segment: `ios {m} open · {j} diverges ({the walkthrough's design-source line, verbatim})`. A count with no design check behind it must not read as a clean result. When the gate did not apply, the line reads `Spec walkthrough: skipped — {no UI sections | no issues to create | no open issues}`.
 
 ### Dry-run (default)
 Print the Android and iOS bodies as code blocks without creating issues. When the gate above applies, this comes only after its fold step. Confirm:
@@ -786,7 +788,7 @@ pm-agent runs in one of two modes depending on what the prompt asks for:
 
 **Full mode** (default — new feature, first invocation, or a re-classification): run the full execution order below, Steps 1–9 (preceded by the unlabeled scope-confirm preamble).
 
-**Incremental update mode** (narrow scope, existing artifact): when the prompt names an existing `_tasks/{feature}.md` AND a bounded change set (e.g. "apply P1/P2/P3 to §X of _tasks and the Android issue body", "record the resolution for `## Open decisions` item 5", "add a note to §Shared behavior"), **skip Steps 2/3/4 (staleness / scope / design source) and Steps 5/6/7 (dry-run / case-A confirm / live issue creation)** — go straight to Step 8 (edit the named sections in place, bump `Updated:`) and Step 9 (one-line report). If the named change touches an existing issue body, use `gh issue edit` (or `gh api -X PATCH .../issues/{n}`) rather than creating a new issue.
+**Incremental update mode** (narrow scope, existing artifact): when the prompt names an existing `_tasks/{feature}.md` AND a bounded change set (e.g. "apply P1/P2/P3 to §X of _tasks and the Android issue body", "record the resolution for `## Open decisions` item 5", "add a note to §Shared behavior"), **skip Steps 2/3/4 (staleness / scope / design source) and Steps 5/6/7 (dry-run / case-A confirm / live issue creation)** — go straight to Step 8 (edit the named sections in place, bump `Updated:`) and Step 9 (one-line report). If the named change touches an existing issue body, use `gh issue edit` (or `gh api -X PATCH .../issues/{n}`) rather than creating a new issue. An edit set that touches UI first goes through the spec walkthrough on its delta (see below).
 
 **Post-merge close-out** is also an incremental-mode pattern. Prompts like "both PRs merged — close out `_tasks/{feature}.md`" or "양 PR 머지 완료 — _tasks 마무리" trigger the §Post-merge close-out procedure (Phase A; re-invoked for Phase B once a downstream release gate clears). It re-runs §Cross-platform consistency review at the merge point + edits the `_tasks` header in place; otherwise it follows the same skip-Steps-2–7 discipline as a regular incremental update.
 
@@ -799,7 +801,17 @@ Neither is a new *mode* — each phase is authored in **full mode**, exactly as 
 
 **Spec walkthrough fold-in** is not incremental mode either. A re-invocation that carries the `Spec walkthrough: pending` block you returned, plus walkthrough results, resumes that run at Step 5's fold step (§Spec walkthrough gate). The run state in the block (case, pre-check results, user answers already given) is settled. Continue with whichever of that run's steps remain, and skip any whose answer the block records. In an epic decomposition, that means the overview and the phase directory written before the draft are this run's own output. They are not an in-flight epic to stop on.
 
-Incremental mode does not run the gate. It skips Step 5, so an incremental edit that adds a component reaches the issue body without a walkthrough. Re-run full mode when the added UI needs one.
+**Incremental edits that touch UI go through the spec walkthrough, on their delta.** An incremental edit skips Step 5, so without this rule a new component or a changed display condition reaches both issue bodies unexamined. The rule applies when the edit set adds or changes a line in `## Screens`, `## Components` or `## Measurements`, or a `## Shared behavior` line about what is shown (a displayed value, or a show / hide / enable condition). Other incremental edits skip it: recording a decision that touches none of those lines, a non-display note, §Post-merge close-out. So does an edit to an issue body alone. A display change belongs in `_tasks` first, and an edit set that changes only an issue body's display text should be re-stated as a `_tasks` edit.
+
+1. Prepare the edits without applying them. Do not write `_tasks` and do not run `gh issue edit` yet. Return the `Spec walkthrough: pending` block (§Spec walkthrough gate) with this content:
+   - **Run state:** `incremental — edit set {…}`. Add `parity, reference {platform}` when the header says parity. If the new-endpoint fallback (below) also ran, the run stays incremental, and its delta case, Step 3 result and case-B spec-source answer go into the Run state.
+   - **`draft _tasks`:** the whole file with the edits applied.
+   - **`--- delta ---`:** the changed lines, before → after. An added line has no `before`, so it carries the line it follows as its anchor.
+   - **Draft bodies:** a `_tasks` UI line applies to every platform, so the walk covers every platform whose issue on this `_tasks` is **open** (`gh issue view --json state,body`; the lagging one only on parity). A named body is included with the patch applied. An unnamed one is included as it stands: walking reads it, but you never patch a body the edit set did not name. A closed issue is not walked, and its summary segment reads `{platform} not walked — issue closed`. If no platform has an open issue, skip the gate: `Spec walkthrough: skipped — no open issues`.
+   - **Design source:** take it from the existing header. An html path is still readable. A Figma source is not re-read in incremental mode (Step 4 is skipped), so write `figma — not re-exported in incremental mode` in place of the per-node list. A parity brief is not available either (it was transient), so write `parity brief — not available in incremental mode` and leave the brief section empty. In both cases the walkthrough reports the design as not read, and the summary carries that.
+2. On the fold re-invocation, apply the fold rules. Then apply the edits. Re-apply the delta plus the fold's output to the **current** `_tasks` (its new `## Open decisions` entries) and to the current **named** issue bodies (their `## Cautions` lines). Fetch both again first. The block's full texts are context only: overwriting with them would discard anything changed since the draft. Check every delta line on every target before writing any of them. If a `before` text or an anchor is no longer in the current file or body, someone edited it in between. Stop and report the conflict without writing anything. Report Step 9's one line, then the `Spec walkthrough:` summary line, then which bodies were edited. For an open platform the edit set did not name, list its walkthrough items and the delta as `not applied to {platform} #{N} — not in the edit set`, so the user decides. Incremental mode has no dry-run, so that summary is where the user sees what the walkthrough opened.
+
+A prompt that carries a `Spec walkthrough: pending` block is a fold-in (see above). It is neither a new incremental request nor a full-mode run.
 
 **Detection heuristic**:
 - Prompt references an existing `_tasks/{feature}.md` AND
@@ -810,10 +822,10 @@ Incremental mode does not run the gate. It skips Step 5, so an incremental edit 
 - Vague directives — "update", "refresh", "redo", "re-author" — without a bounded change set. The file reference alone isn't enough.
 - Any request to revisit the case classification or re-validate the API spec.
 
-**Fallback to full mode**: if the incremental change references new endpoints not present in `_context/api/{domain}.md`, or a new domain, **treat the delta as a fresh case-B (or case-C) sub-invocation** — run Step 1 (classify the delta) → Step 3 (scope check) on those endpoints only, then continue editing in place. Don't re-run the full pre-check sweep on the whole feature. (Case-B's spec-source ask in Step 1 is the part that matters; skipping it on a "delta with new endpoints" would silently lose that gate.)
+**Fallback for new endpoints** (the run stays incremental): if the incremental change references new endpoints not present in `_context/api/{domain}.md`, or a new domain, **treat the delta as a fresh case-B (or case-C) sub-invocation** — run Step 1 (classify the delta) → Step 3 (scope check) on those endpoints only, then continue editing in place. Don't re-run the full pre-check sweep on the whole feature. (Case-B's spec-source ask in Step 1 is the part that matters; skipping it on a "delta with new endpoints" would silently lose that gate.)
 
 **When uncertain**, ask once:
-"[pm-agent] This looks like an incremental update to existing `_tasks/{feature}.md`. Skip the full pre-check cycle (staleness / scope / design source / issue dry-run) and apply the named changes? (yes / no — run full mode)"
+"[pm-agent] This looks like an incremental update to existing `_tasks/{feature}.md`. Skip the full pre-check cycle (staleness / scope / design source / issue dry-run) and apply the named changes? An edit that touches UI is walked through first. (yes / no — run full mode)"
 
 Pre-checks remain mandatory in full mode (case A/B staleness, A/B scope, design-source availability for every active case). Incremental mode trusts the existing `_tasks` header's `API Spec` line and `Design source:` line — both were validated when first authored.
 

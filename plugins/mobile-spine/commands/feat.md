@@ -375,7 +375,7 @@ For the cross-platform parity path, print one line before extraction, one before
 **Spec walkthrough gate first.** pm-agent may return a `Spec walkthrough: pending` block instead of a dry-run (pm-agent.md §Spec walkthrough gate). This happens on every path whose spec has UI sections, including single feature, epic phase 1, parity and client-only. pm-agent cannot run the gate itself, so you run it before the user sees anything:
 
 1. Print `[/feat] Spec walkthrough — android-agent + ios-agent (read-only)`. On the parity path, name the lagging platform only.
-2. Invoke `android-agent` and `ios-agent` in parallel (on the parity path, the lagging platform only). Ask each for a **Spec walkthrough**, and paste in its platform's draft body, the draft `_tasks`, and the design source: the block's `Design source:` line, plus its parity-brief section on the parity path. Take all of these from the block.
+2. Invoke `android-agent` and `ios-agent` in parallel, only for the platforms the block has a draft body for (on the parity path, the lagging platform only). Ask each for a **Spec walkthrough**, and paste in its platform's draft body, the draft `_tasks`, and the design source: the block's `Design source:` line, plus its parity-brief section on the parity path (and its `--- delta ---` section, should the block carry one). Take all of these from the block.
 3. Re-invoke pm-agent with the whole pending block plus each walkthrough result, all verbatim. The new invocation is a fresh context, so the block is all it knows of the first run. It folds the results in and prints the dry-run with its `Spec walkthrough:` summary line.
 
 Do not show the pending drafts to the user as a dry-run, and do not ask the create question before step 3 returns.
