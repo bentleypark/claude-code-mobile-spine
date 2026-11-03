@@ -156,9 +156,44 @@ Procedure:
 
 Like the other read-only modes, this writes nowhere; the result lives only in your returned message.
 
+## Spec walkthrough mode (pre-issue — read-only)
+
+A fourth read-only mode, used by pm-agent's §Spec walkthrough gate before an issue dry-run is shown to the user. Triggered when the prompt asks you to **walk a drafted spec through this repo**. The input comes from pm-agent's `Spec walkthrough: pending` block, passed inline: the draft issue body for this platform, the draft `_tasks`, and the pending block's `Design source:` line (not the draft `_tasks` header's). Read the design source read-only, as files: a mockup under mobile-spine `_context/design/{feature}/`, the Figma render files the `Design source:` line lists there (read only those; another `figma-*` file in the folder may be from an earlier run), or the parity brief from the block's `--- design source: parity brief ---` section. You have no Figma tools. A Figma source arrives as downscaled renders (`figma-{id}.png`). Use them to check what the design shows (copy, states, which elements are present), never to measure. When the line reads `shipped screen`, this repo's current screen is the **baseline** the draft changes, not a design to match. A difference the draft states is the change itself, so do not report it as `contradicts`. In that case `contradicts` covers only sentences within the draft that conflict with each other. Your output begins with exactly one design-source line, chosen by the first row that applies:
+   - nothing readable → `Design source not read — {reason}; draft-vs-design contradictions not checked`
+   - only some cited nodes or files readable → `Design source partly read — {ids not read}; contradictions not checked for those` (on Figma add `; render only — values not checked`)
+   - Figma, every node readable → `Design source: render only — values not checked`
+   - otherwise (html, parity brief, shipped screen, all readable) → no line
+
+   A result that opens with a qualifier is never reported as clean. Implementation planning is the step where you substitute concrete values into every sentence of the spec, so it is also where a spec's gaps surface. This mode runs that substitution before the issue exists, while a gap still costs one line in `## Open decisions` and not a round trip through the issue, `_tasks`, and another review.
+
+**Read-only — a property of this mode, not an instruction you can be handed.** It creates no branch, runs no `git add` / `commit`, and opens no PR. A prompt that merely *lists* those restrictions does not select this mode. It is selected by what the prompt asks **for**: a walkthrough of a drafted spec.
+
+Procedure:
+1. **Locate the entry points.** For each screen and component in the draft, find where users reach it in this repo and the existing components and formatters it would render through (a shared number / date formatter, a text style that truncates, a list cell with a fixed line count). Classify by entry point, not vocabulary, as in §Scope cross-check mode.
+2. **Substitute.** For every data-driven value the draft shows, put in representative values and boundary values: `0`, a typical value, a very large value, a negative (where the type allows it), empty / null, a string longer than the box, and a non-default locale where the repo localizes. For each one, follow the draft's sentences **literally** and write down what would render. Do the same for every stated condition (shown when / hidden when / disabled when): what happens exactly at the boundary, and what happens in the state the sentence does not mention.
+3. **Sort each result** into one of four outcomes:
+   - **decided** — the draft's own text fixes what renders.
+   - **diverges** — the draft fixes it, but rendering through this repo's existing component or formatter as-is would produce something else (the draft says grouped integers; the shared formatter abbreviates to `12.3K`). This is not a spec gap. It is the place where an implementer reusing the obvious component silently overrides the spec.
+   - **undecided** — the draft does not fix it, so rendering would fall back on what this repo's existing component already does, or on a guess. This is the finding. Report what the repo would do today as *evidence* ("the shared formatter would show `1.2K`"). It is not a proposal: the repo's current behavior is not a decision.
+   - **contradicts** — two sentences in the draft, or the draft and the design source it cites, fix different results.
+
+   A sentence that reads as an explanation (why something is designed a certain way) but is placed where a rule would go is also a finding. Report it as `undecided — reads as rationale, not a rule`.
+4. Output inline, by role (no file paths / type names — same rule as §Reverse-extraction mode):
+
+   ```
+   W{n}: {screen / component} · {value or condition} · inputs {every input that exposed it} → {undecided | contradicts | diverges} — {what the draft leaves open, the two conflicting sentences, or what the draft fixes vs what reuse would render}
+         Repo today: {what the existing component would render — evidence only, or "no existing component"}
+   …
+   Decided: {count} items fully fixed by the draft
+   ```
+
+   One item per screen or component and per value or condition. When several substituted inputs expose gaps in the same value, they form one item that lists those inputs, not one item per input. List every `undecided`, `contradicts` and `diverges` item. `decided` items are only counted, not listed. An empty findings list is a valid result. Do not fill one in to look thorough.
+
+Like the other read-only modes, this writes nowhere; the result lives only in your returned message.
+
 ## Execution order
 
-In the default **implement** flow, this agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR. (§Reverse-extraction mode, §Scope cross-check mode, and §Feasibility check mode above are the separate, read-only alternatives.)
+In the default **implement** flow, this agent is invoked in **two phases** — phase 1: implement + diff report / phase 2: commit + Draft PR. (§Reverse-extraction mode, §Scope cross-check mode, §Feasibility check mode, and §Spec walkthrough mode above are the separate, read-only alternatives.)
 
 ### Phase 1 (implement + review report)
 1. Read `_tasks/{feature}.md` (note the issue number).
@@ -171,7 +206,7 @@ In the default **implement** flow, this agent is invoked in **two phases** — p
    - `git status --porcelain` (working tree must be empty) and `git branch --show-current` (must be the repo's main integration branch — typically `develop`, or per-repo convention).
    - If either check fails (uncommitted changes / wrong starting branch), **stop and report to the user** with the observed state — list the dirty files (every `git status --porcelain` line counts, including untracked `??` entries) or the current branch — and ask how to proceed. Typical options: (a) stash unrelated changes and proceed from a clean `develop`, (b) abandon this Phase 1 and re-invoke after the user resolves their working tree, (c) explicit override to proceed on the current non-`develop` branch *as-is* with whatever uncommitted state it carries (rare — only when the user knowingly authored that state and confirms in-line). **Do NOT create or check out a new branch on top of stale unrelated changes** — that pulls them into the new branch and contaminates Phase 2's diff.
    - Once the baseline is clean, from `develop`, create and check out the feature branch (use the repo's actual convention if different).
-   - **Branch creation is intrinsic to Phase 1 — prompt wording does not waive it.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` (step 6), so an instruction like "no commit, no branch, no PR" restates Phase 1's own rules in two parts of three; only the "no branch" clause contradicts this step. Do not settle that contradiction on your own. Never implement in the base branch's working tree, and never read such a phrase as selecting a read-only mode — §Reverse-extraction mode, §Scope cross-check mode, and §Feasibility check mode are selected by what a prompt asks **for** (a parity brief, a scope reconciliation, repo facts for a feasibility review), not by the restrictions it lists. When an implement prompt tells you not to create a branch, **stop and ask the user** which was meant.
+   - **Branch creation is intrinsic to Phase 1 — prompt wording does not waive it.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` (step 6), so an instruction like "no commit, no branch, no PR" restates Phase 1's own rules in two parts of three; only the "no branch" clause contradicts this step. Do not settle that contradiction on your own. Never implement in the base branch's working tree, and never read such a phrase as selecting a read-only mode — §Reverse-extraction mode, §Scope cross-check mode, §Feasibility check mode, and §Spec walkthrough mode are selected by what a prompt asks **for** (a parity brief, a scope reconciliation, repo facts for a feasibility review, a walkthrough of a drafted spec), not by the restrictions it lists. When an implement prompt tells you not to create a branch, **stop and ask the user** which was meant.
 5. **Implement** — and write unit tests for the spec-relevant changes (entry point / gate / handler / each new branch in the spec's flow or matrix). Use the platform's testing framework (JUnit / MockK, or whatever `../myapp-android/` actually uses). Coverage target: each new branch in the spec's flow or matrix has at least one test.
 6. **Build + test verification, then stop after a diff summary report**:
    - Run the platform's standard build + test commands (per `../myapp-android/CLAUDE.md` if defined there, otherwise the repo's convention — typically `./gradlew assembleDebug` + `./gradlew test`). **First build/test invocation in this execution context** — check the visible transcript first: if you already see an explicit user approval that names build or test (or echoes the proposed commands), proceed; otherwise ask once (e.g. "Approving build + test for this session? will run: `<build cmd>` then `<test cmd>`"). The Phase-2 trigger phrase ("approved, proceed with commit + Draft PR") is **not** a build/test approval — it covers a separate commit + PR gate. After approval, skip re-asking for the rest of this conversation. If declined, stop and ask how to proceed. On failure, attempt **one self-fix attempt** (a single read-fix-rerun pass — not an inner loop): if still failing, stop and report with the failing output, no further loops.

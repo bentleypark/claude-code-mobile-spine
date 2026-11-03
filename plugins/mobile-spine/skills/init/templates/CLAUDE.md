@@ -91,7 +91,7 @@ This is a self-check, not a gate — nothing blocks an invocation with a weak re
 
 **1. Phase 1 invocation prompt — include the git-baseline expectation.** The platform agent's §Phase 1 step 4 requires checking `git status --porcelain` (clean) and `git branch --show-current` (the integration branch — typically `develop`). The main session's Phase 1 prompt should explicitly remind the agent to run this baseline check first, so an abridged prompt ("phase 1 only — implement and report") does not silently skip step 4. On failure the agent stops and reports; the main session surfaces that report to the user and does not proceed without the user's resolution.
 
-  **Do not tell the agent not to create a branch.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` on the agent side, so a prompt like "phase 1 only — no commit, no branch, no PR" adds nothing except a contradiction with §Phase 1 step 4, which creates the feature branch. Cutting the branch *is* Phase 1. A run that must touch no git at all is a read-only mode (§Reverse-extraction / §Scope cross-check / §Feasibility check) — invoke it by asking for what it produces, not by listing restrictions.
+  **Do not tell the agent not to create a branch.** Phase 1 already forbids `git add` / `git commit` / `gh pr create` on the agent side, so a prompt like "phase 1 only — no commit, no branch, no PR" adds nothing except a contradiction with §Phase 1 step 4, which creates the feature branch. Cutting the branch *is* Phase 1. A run that must touch no git at all is a read-only mode (§Reverse-extraction / §Scope cross-check / §Feasibility check / §Spec walkthrough) — invoke it by asking for what it produces, not by listing restrictions.
 
 **2. After receiving Phase 1's report — do not synthesize the Phase 2 trigger phrase.** The platform agent's §Phase 2 description requires the trigger phrase ("approved, proceed with commit + Draft PR") to originate from the user — even when the Phase 1 report shows no concerns (clean build / passing tests / trivial diff), and even when the user previously expressed a blanket pre-authorization ("approve all clean phases"). The main session's job after Phase 1 is to surface the report to the user and wait. Asking "shall we proceed to Phase 2?" is fine; synthesizing the trigger phrase from a clean report is prohibited.
 
@@ -106,6 +106,12 @@ Per-platform code review (`pr-review-toolkit:review-pr`, `code-review`, etc.) ru
 Policy bodies for the rule details live next to the things they govern:
 - `agents/android-agent.md` / `agents/ios-agent.md` §Phase 1 step 4 (baseline check), §Phase 2 description (trigger ownership), §Phase 2 Final report (next-step ordering).
 - `agents/pm-agent.md` §Cross-platform consistency review (after both PRs exist), §Post-merge close-out.
+
+## Spec walkthrough gate (main-session view)
+
+pm-agent may return a `Spec walkthrough: pending` block instead of a dry-run. It does this whenever the spec has UI sections (pm-agent.md §Spec walkthrough gate). `/feat` handles the block itself. On every other path you are the caller and must handle it: an epic next-phase, a re-run, or a direct pm-agent invocation. Run `android-agent` and `ios-agent` in parallel in their read-only Spec walkthrough mode (on the parity path, the lagging platform only). Give each its draft body, the draft `_tasks`, and the design source from the block (its `Design source:` line, plus the parity-brief section on the parity path). Then re-invoke pm-agent with the whole block plus each walkthrough result, verbatim. The new invocation starts with a fresh context, so the block is all it has. Never show pending drafts to the user as a dry-run.
+
+**After issues exist, a presence check is not a review.** Grepping the created issue bodies for the items you asked for confirms that they are there. It does not confirm that an implementer can build from them. When you check a created issue or a `_tasks` file, read the body as the platform agent will: for each sentence, ask what it makes the screen render, and whether it is a rule or an explanation.
 
 ## Case classification (pm-agent runs this on every call)
 

@@ -56,6 +56,7 @@ Then proceed. This one-line self-check catches silent mis-substitution (LLM forg
 Allowed paths:
 - `_tasks/` (read/write)
 - `_context/api/`, `_context/design/`, `_context/feasibility/` (read)
+- `_context/design/{feature}/figma-*.png` (write — only the Figma render export for §Spec walkthrough gate: `rm -f` a node's earlier export, then `cp` the screenshot file the Figma tool result named. Reading that tool-result file to copy it is allowed. Nothing else under `_context/design/` is written)
 - `_context/operations.md` (read/write — limited to §Post-merge close-out Phase B retro line; never edited during normal Step 1–9 authoring)
 - `../myapp-backend/` (read — **only** for the stale-check `git log`; do not read backend source files)
 - **HTML/CSS design mockups** (read) — when the design source is `html` (Step 4 — Pre-check 3). Recommended location is `_context/design/{feature}/` (already covered above), but a user-supplied path outside the workspace is also allowed for reads. **Exception:** never read a mockup from inside a platform/backend repo (`../myapp-android/`, `../myapp-ios/`, `../myapp-backend/`) — that is platform-source territory (see the rule below); ask the user to copy the mockup into `_context/design/{feature}/` instead.
@@ -189,6 +190,7 @@ Therefore at task kickoff:
    - **spacing** — padding, gaps between elements, and any margin the layout depends on
    - **typography** — family, size, weight, line-height, letter-spacing
    - **assets & boxes** — each icon's / image's **intrinsic** dimensions *and* the box it renders into, stated separately whenever they differ; corner radius; stroke width
+   - **content format** — how each data-driven value renders: number format (digits, rounding, separators, unit, abbreviation), date / time format, truncation and line limit, the empty / null display. A value shown on the frame is a sample, not a format — see §Measurement altitude and units
 
    Where each value actually comes from — the tools do not overlap the way their names suggest:
    - **`get_metadata`** — every node's `x` / `y` / `width` / `height`. Gaps between siblings are the deltas. It stops at an `instance` boundary and lists no children, so a screen built from component instances is **under-reported** here.
@@ -206,7 +208,7 @@ The same no-single-screen discipline applies: an HTML mockup set is the equivale
 3. Extract **design tokens** from CSS `:root` custom properties (`--color-*`, `--font-*`, spacing) — the analogue of `get_variable_defs`. Inline styles count too.
 4. Identify **components** from repeated DOM structures / reused class blocks (BEM-style blocks, web components, repeated card/list-item markup) — the analogue of per-node component extraction.
 5. Check for missing **states** (empty / loading / error / success-failure). These may be separate files or toggled by a CSS class / `hidden` attribute / `data-state`. If a state seems absent, ping the user once: "is there a separate mockup for it, or should this be a code-level TODO?" — same gate as the Figma branch's step 4.
-6. **Measure**, to the same coverage as the Figma branch's step 5 — spacing, typography (incl. line-height and letter-spacing), asset intrinsic dimensions vs. their rendered box, radius, stroke. The `:root` scales from step 3 are the shared values; per-element rules and `width` / `height` attributes carry the specific ones. An unreadable value is an open decision, exactly as in the Figma branch's step 6.
+6. **Measure**, to the same coverage as the Figma branch's step 5 — spacing, typography (incl. line-height and letter-spacing), asset intrinsic dimensions vs. their rendered box, radius, stroke, content format (a hard-coded sample in the markup is not a format rule). The `:root` scales from step 3 are the shared values; per-element rules and `width` / `height` attributes carry the specific ones. An unreadable value is an open decision, exactly as in the Figma branch's step 6.
 
 > No headless rendering or screenshotting — the HTML/CSS **source** is the spec. Do not execute JS; treat the markup, stylesheets and scripts as static source. (Asset generation is out of scope. There is no `get_screenshot` equivalent to require here: the Figma branch needs a rendered reference because a node's numbers are not readable as text, whereas the mockup's markup and stylesheets already *are* that reference.)
 
@@ -217,6 +219,8 @@ The same no-single-screen discipline applies: an HTML mockup set is the equivale
 **Units — the design's own, converted by each platform.** Write the raw design value (`30×30`, `radius 8`, `20/600/1.4`); each platform agent converts to `dp` / `pt` at implementation. `_tasks` stays platform-neutral, and the value exists in exactly one place. Do **not** pre-convert into `## Android` / `## iOS`.
 
 **Always separate an asset's intrinsic size from the box it renders into.** When they differ, state both — `box 30×30, asset intrinsic 24×24`. Collapsing them is the single most common way a measurement spec goes wrong: the reader assumes the platform scales one to the other, and each platform assumes differently.
+
+**A sample value is not a format.** A design shows one value per field — `1,234`, `3.5 km`, `Mar 4` — and that one value settles nothing about `0`, `0.5`, `1234567`, a negative, a null, or a string twice the width of the box. Because the value is *visible*, it reads as specified, and the "a measurement you cannot read is an open decision" rule never fires. A content format is written into `_tasks` only when a source states it as a rule (a format note on the frame, a brief, `_context`, a cross-phase decision). Otherwise it goes to `## Open decisions` flagged `format not in design source` — the same route as an unreadable measurement. In an epic, a format convention every phase will share (how counts, prices, dates render) belongs in `00-overview.md` `## Cross-phase decisions`, decided once.
 
 ### UI sections + the `none` fallback
 
@@ -302,8 +306,55 @@ Before writing `_tasks/{feature}.md`, create issues in both platform repos. **De
 
 > **Label policy**: default to `enhancement` only on both repos. Other labels may not exist in the target repo and will fail `gh issue create`. Confirm with the user before adding.
 
+### Spec walkthrough gate (before the dry-run is shown)
+
+Reviews of a spec compare documents with each other. None of them asks what an implementer would actually draw if they followed each sentence literally. Until this gate, the first place anyone asked that was a platform agent's Phase 1 plan, after the issues already existed. This gate asks it while the bodies are still drafts.
+
+**When it runs.** It runs wherever Step 5 runs: full mode, every epic phase, the parity path, client-only. The condition is structural: it runs when `## Screens` / `## Components` hold real content. It is skipped when they are empty or carry only the `none` placeholder line. Case (A / B / C / client-only) does not decide it. Case is an endpoint axis, and a one-line case-A change can add a displayed number.
+
+**Who runs it.** Not pm-agent. The walkthrough substitutes values into the *target repo's* existing components and formatters, and you do not read platform repos (§Codebase inventory split). You also wrote the drafts, so a self-read would only repeat your own interpretation. The caller (the `/feat` command or the main session) runs android-agent and ios-agent in parallel in their read-only **Spec walkthrough mode**. On the parity path it runs the lagging platform only, because the reference's shipped behavior is the spec there.
+
+**Your side — two invocations.** The second invocation is a fresh context. It remembers nothing of the first, and `_tasks` is not on disk yet (it is written at Step 8). So everything the fold needs travels in one block that you return and the caller pastes back.
+
+1. *Draft.* After drafting the issue bodies in scope, if the gate applies, **do not ask the create question**. Return this block and stop:
+
+   ```
+   Spec walkthrough: pending
+   Caller: run android-agent / ios-agent (parity: the lagging platform only) in Spec walkthrough mode, in parallel. Give each one its platform's draft body, the draft _tasks, and the design source below. Then re-invoke pm-agent with this whole block plus each walkthrough result, verbatim.
+   Run state: {invocation pattern — full | epic decomposition, phase 1 of {epic} | epic next-phase, phase N of {epic} | parity, reference {platform}}; case {X}; pre-check results {one line each}; answers already given by the user {Step 6 and any ping, verbatim}
+   Design source: {html {path} | figma, render only — per node: {id} → {png written this run} | {id} → not exported — {reason} | parity brief (section below) | shipped screen (client-only — baseline only) | none}
+   --- draft _tasks ---
+   {full draft}
+   --- draft issue body: {platform} ---
+   {full draft, one section per body in scope}
+   --- design source: parity brief ---
+   {parity path only: the brief, verbatim}
+   ```
+
+   If Step 6 has already been answered "already implemented" by this point (the `/feat` client-only template runs Step 6 first), no issues will be created. Skip the gate and say `Spec walkthrough: skipped — no issues to create`.
+
+   **Figma design source → export the renders first.** The platform agents have no Figma tools, so node refs alone leave the draft-vs-design check off. Before returning the block, take each node you called `get_design_context` or `get_screenshot` on in Step 4. If that result names a saved **`.png`** file (a saved `.txt` is the tool's text output, not a render), delete that node's earlier export with `rm -f` and then `cp` it to `_context/design/{feature}/figma-{id}.png`. The id uses `:` → `-` and `;` → `_`, and paths are quoted. Only renders are exported, because only a render can be copied mechanically. Reference code would have to be re-emitted by you, and a re-emitted copy can be silently shortened or altered while still reading as the original. So the walkthrough checks what the design *shows* (copy, states, which elements are present) against the draft. Design **values** (spacing, sizes) stay as you measured them in Step 4 and are not re-checked.
+
+   On the `Design source:` line, list every node the draft's `## Screens` / `## Components` cite. Give each one the file written **in this run** (listed only when `cp` exited 0), or `not exported — {reason}` (for example, no saved screenshot was named). The walkthrough reads only the files that line lists.
+
+   A dry-run shown before the walkthrough has run asks the user to approve gaps that nobody has looked for.
+2. *Fold.* When you are re-invoked with that block and the walkthrough results, take the run state from the block as settled. Do not re-run Steps 1–4. Do not re-ask any answer the block records. If the block is missing, do not reconstruct it: stop and report `fold requested without the pending block — re-run from the draft step`. If a platform that should have been walked has no result, or its result is an error, do not fold around it silently. Its summary segment reads `{platform} not walked — {reason}`, and the dry-run is not presented as checked for that platform. Then, per walkthrough item:
+   - **undecided / contradicts** → `## Open decisions`, one decision per item. A walkthrough item is already one screen or component and one value, so the inputs it substituted stay inside that decision as sub-points. If an existing entry already covers the item, merge it there. Otherwise flag it `walkthrough — not decided by spec`. In an epic phase, mark a content-format item that later phases will also render `epic-wide — record in 00-overview.md ## Cross-phase decisions once decided` (§Measurement altitude and units). An item reported as `reads as rationale, not a rule` takes the §_tasks authoring discipline flag instead: `derived from rationale — confirm`, quoting the sentence. Copy each decision into the affected issue bodies' `## Cautions` as `Not decided by the spec — {item}; do not substitute the screen's existing behavior`.
+   - **diverges** → not a decision: the spec already decided it. It goes into that platform's issue body `## Cautions` only, as `The spec fixes {value}; this repo's existing {component, by role} renders {other} — do not reuse it as-is`.
+   - **Repo today** evidence is a per-repo fact. It may go into that platform's issue body. It never goes into `_tasks` (§Codebase inventory split).
+
+   Never resolve an item yourself by picking the value the agent reported as the repo's current behavior. What the repo does now is the walkthrough's evidence, not a decision. A long `## Open decisions` after the fold is the length budget's own signal that the spec is not decided yet (§_tasks authoring discipline). The user resolves it. Do not trim it to fit.
+
+   Then print the dry-run with one summary line above the bodies, one segment per platform walked (only the lagging one on the parity path), and continue that run's remaining steps:
+
+```
+Spec walkthrough: android {n} open · {k} diverges; ios {m} open · {j} diverges → ## Open decisions {item numbers}
+```
+
+When a platform's walkthrough opened with a design-source line (`not read`, `partly read`, or `render only — values not checked`), carry that whole line into its segment: `ios {m} open · {j} diverges ({the walkthrough's design-source line, verbatim})`. A count with no design check behind it must not read as a clean result. When the gate did not apply, the line reads `Spec walkthrough: skipped — {no UI sections | no issues to create}`.
+
 ### Dry-run (default)
-Print the Android and iOS bodies as code blocks without creating issues. Confirm:
+Print the Android and iOS bodies as code blocks without creating issues. When the gate above applies, this comes only after its fold step. Confirm:
 "[pm-agent] Create issues with these bodies? (yes → create in target repos / no → revise body or defer)"
 
 ### Live creation (after user yes)
@@ -432,7 +483,7 @@ iOS Issue: myorg/myapp-ios#{N2}
   - Screen overview → `get_metadata`
   - Per-screen UI/component spec → `get_design_context` (primary)
   - Color/typography tokens → `get_variable_defs`
-  - Rendered reference → `get_screenshot` per node (**required** — the measurement step's evidence, §Step 4 Figma branch step 5). Also the asset-export path; save to `_context/design/{feature}/` if needed
+  - Rendered reference → `get_screenshot` per node (**required** — the measurement step's evidence, §Step 4 Figma branch step 5). Files under `_context/design/{feature}/` are written only as the §Spec walkthrough gate's `figma-*` export (Safety rule)
 - **HTML mockup**: a path to `*.html` / `*.css` files (recommended under `_context/design/{feature}/`; any non-platform-repo path is readable — §Safety rule). No MCP — read with `Read`/`Glob`/`Grep`. The Figma→HTML equivalents:
   - Screen overview → `Glob` the mockup dir; each file / top-level route ≈ one node
   - Per-screen UI/component spec → `Read` the HTML + its CSS
@@ -468,6 +519,7 @@ iOS Issue: myorg/myapp-ios#{N2}
 - **The tech stack is a repo fact, not a spec fact.** Never name a UI framework, networking client, or platform API in `_tasks` or in an issue body — not in `## Completion criteria`, not in `## Flow`, not as an "input hint". You do not read the platform repos (§Codebase inventory split), so you cannot know what the target screen is built with; a screen can use an older framework than the repo's headline stack, and prescribing the wrong one turns a completion criterion into a demand to rewrite that screen. State the **outcome** ("UI implemented per the design source", "networking integrated for the new endpoints", "numeric keyboard + one-time-code autofill") and leave the construct to the agent that can see the code. This is the rule below, applied to the platform's own toolchain.
 - **Describe behavior, not its implementation form — especially the thing being changed or removed.** When the spec replaces or deprecates an existing behavior, name it by what it *does* **and its user-facing entry point** ("the signup nickname field's length + allowed-character limit"), never by one platform's implementation of it (a specific regex like `[a-zA-Z0-9]{1,7}`, a `Validator` / `Rule` class, a length constant). Implementation-framed wording is platform-biased: the other platform may enforce the same behavior a different way — a length check, an inline view-model guard — so a platform agent grepping for the implementation term finds only the matching form and **silently misses the equivalent one**, landing the change on the wrong (often legacy) screen and skipping the real one. State the behavior + entry point; let each platform agent find its own implementation. (This is the same anti-bias reason as "no symbols" above, applied to the *legacy* side of a change — the most common place implementation vocabulary sneaks in.)
 - **Rationale is sourced, never supplied.** State *what* changes and *what* it does for the user. A **motivation** — why the change is wanted, what problem it corrects, what it would otherwise cause — may be written only when an authoritative input actually states it: the requester's brief, the design source, `_context`, the parity brief (§Cross-platform parity), or the epic overview's `## Goal` (§Epic tasks). When none of them does, say what changes and stop. What is forbidden is a motivation with **no source** — inferred from the change's shape, however obvious it seems ("the copy contradicts current policy", "it was confusing users"). A spec is read later as the record of intent, and an unsourced cause is indistinguishable from a stated one once it is on the page. If the missing reason matters — it decides scope, or a reviewer will ask — put it in `## Open decisions` flagged `rationale not stated in any source`, the same way a design-derived endpoint is flagged rather than fabricated (§Step 4 "Design-driven requirements"). This applies to every artifact pm-agent writes, `_tasks` and issue bodies alike; an invented sentence in `## Purpose` is copied outward into both issues on the next step.
+- **A source's explanation is not a rule.** The reverse of the item above: the source exists, but the sentence was not an instruction. An input mixes **normative** statements — what to show, when, how ("show the total in bold", "hide the badge at zero") — with **explanatory** ones — why a choice was made ("users compare these two numbers, so they sit side by side"). Only normative statements become rules in `_tasks` or an issue body. Lifting an explanation into `## Shared behavior` or a component's notes turns a designer's reasoning into a display requirement that no one decided, and once it is on the page it reads exactly like one that was. When an explanation implies a rule the spec seems to need, write the implied rule into `## Open decisions` flagged `derived from rationale — confirm`, quoting the explanatory sentence.
 - **Cross-platform deltas go in the neutral sections, summarized** — when Android and iOS differ in a way that matters at the spec level (one already has a capability the other must build from scratch, one carries an extra constraint), state it as a one- or two-line summary in `## Shared behavior` or `## Completion checklist` — by role, no file paths (e.g. "Android already carries the prior GET snapshot into the final PATCH; iOS must add that seeding"). The detailed per-repo maps belong in each platform's GitHub issue / PR body; `## Android` / `## iOS` are for genuinely platform-specific *constraints*, not a place to mirror a code inventory.
 
 ## _tasks/{feature}.md output format
@@ -622,7 +674,7 @@ Status: {free-form epic progress, e.g. "phase 2 of 4 in progress" | "all phases 
 {Dependency / ordering constraints between phases — e.g. "phase 2 depends on phase 1's data model"; "phases 3 and 4 may run in either order after phase 2". Empty if phases are strictly linear.}
 
 ## Cross-phase decisions
-{Decisions fixed once at the epic level and referenced by every phase — e.g. "feed item ID is a server-issued string UUID". Keeps a phase file from re-litigating a settled epic-wide choice. Empty if none.}
+{Decisions fixed once at the epic level and referenced by every phase — e.g. "feed item ID is a server-issued string UUID"; a content format several phases render ("counts ≥ 10,000 abbreviate to 12.3K, one decimal, truncated not rounded"). Keeps a phase file from re-litigating a settled epic-wide choice. Empty if none.}
 ```
 
 The overview's `## Phases` status column is the epic's progress tracker. Status values:
@@ -745,6 +797,10 @@ Neither is a new *mode* — each phase is authored in **full mode**, exactly as 
 
 **Cross-platform parity** is a further pattern (§Cross-platform parity), for a feature already shipped on one platform but not the other. Triggered by the `/feat` parity branch — or a prompt that names a reference platform and supplies a parity brief. It runs **full mode** (Steps 1–9): case classification and pre-checks still apply, but the spec source is the **inline parity brief** (not a Figma / HTML inventory), and Steps 5–7 create an issue for the **lagging platform only**. Like the epic patterns, it's not a new mode — full-mode authoring with a brief as the spec source and a single-platform issue scope.
 
+**Spec walkthrough fold-in** is not incremental mode either. A re-invocation that carries the `Spec walkthrough: pending` block you returned, plus walkthrough results, resumes that run at Step 5's fold step (§Spec walkthrough gate). The run state in the block (case, pre-check results, user answers already given) is settled. Continue with whichever of that run's steps remain, and skip any whose answer the block records. In an epic decomposition, that means the overview and the phase directory written before the draft are this run's own output. They are not an in-flight epic to stop on.
+
+Incremental mode does not run the gate. It skips Step 5, so an incremental edit that adds a component reaches the issue body without a walkthrough. Re-run full mode when the added UI needs one.
+
 **Detection heuristic**:
 - Prompt references an existing `_tasks/{feature}.md` AND
 - Prompt names specific sections / items / a bounded change AND
@@ -774,7 +830,7 @@ Pre-checks remain mandatory in full mode (case A/B staleness, A/B scope, design-
 3. **Step 2 — Pre-check 1** (staleness): A/B only. Stop if stale.
 4. **Step 3 — Pre-check 2** (scope vs _context): A full / B existing-endpoint part. Confirm with user on mismatch.
 5. **Step 4 — Pre-check 3** (design source availability): every active case. Branch on figma / html / none; defer UI sections only when `none`.
-6. **Step 5 — Issue dry-run**: Print issue dry-run bodies (Android + iOS).
+6. **Step 5 — Issue dry-run**: Draft the issue bodies (Android + iOS). If §Spec walkthrough gate applies, return the `Spec walkthrough: pending` block and fold the results in on re-invocation. Then print the dry-run with the walkthrough summary line.
 7. **Step 6 — Case-A implementation-status confirm** (per the §case A policy)
    - Already implemented → skip Step 7 (no issue creation), still go to Step 8. Add `Status: deferred — ...` + `Android Issue: not created` + `iOS Issue: not created` to header. Body still authored (verification value).
    - Not implemented / partial → proceed to Step 7.

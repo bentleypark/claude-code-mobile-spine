@@ -221,7 +221,7 @@ Plug the collected answers (from the §Pre-pass and any follow-up prompts) into 
 
 ## Procedure
 Follow pm-agent.md execution order (steps 1~10):
-- Pre-checks 1·2·3 → Phase 0 design-source inventory (figma multi-node OR html files) → extraction / gap / conflict identification → single ping if needed → write _tasks → issue dry-run
+- Pre-checks 1·2·3 → Phase 0 design-source inventory (figma multi-node OR html files) → extraction / gap / conflict identification → single ping if needed → issue drafts → §Spec walkthrough gate (return the `Spec walkthrough: pending` block when UI sections have content; the caller runs the walkthrough and re-invokes with the block) → issue dry-run → (user approval) → issue creation → write _tasks
 
 ## Policy reminders
 - Follow §_tasks authoring discipline in pm-agent.md: `_tasks` is a spec, not a log — length budget ~150 lines, state each fact once (reference by §), platform-neutral by default with Android/iOS-specific notes confined to `## Android` / `## iOS` (never interleaved), and **no platform-repo file paths / line numbers / class names** anywhere in `_tasks`. On a re-run, edit sections in place and bump `Updated:` — never append `📌 update` / `갱신` blocks.
@@ -372,10 +372,19 @@ For the cross-platform parity path, print one line before extraction, one before
 
 ## After invocation
 
-Report all of the following back to the user in one shot:
+**Spec walkthrough gate first.** pm-agent may return a `Spec walkthrough: pending` block instead of a dry-run (pm-agent.md §Spec walkthrough gate). This happens on every path whose spec has UI sections, including single feature, epic phase 1, parity and client-only. pm-agent cannot run the gate itself, so you run it before the user sees anything:
+
+1. Print `[/feat] Spec walkthrough — android-agent + ios-agent (read-only)`. On the parity path, name the lagging platform only.
+2. Invoke `android-agent` and `ios-agent` in parallel (on the parity path, the lagging platform only). Ask each for a **Spec walkthrough**, and paste in its platform's draft body, the draft `_tasks`, and the design source: the block's `Design source:` line, plus its parity-brief section on the parity path. Take all of these from the block.
+3. Re-invoke pm-agent with the whole pending block plus each walkthrough result, all verbatim. The new invocation is a fresh context, so the block is all it knows of the first run. It folds the results in and prints the dry-run with its `Spec walkthrough:` summary line.
+
+Do not show the pending drafts to the user as a dry-run, and do not ask the create question before step 3 returns.
+
+Then report all of the following back to the user in one shot:
 - _tasks file path
 - Case classification / pre-check results
 - Identified gaps / conflicts (if any)
+- The `Spec walkthrough:` summary line, and the `undecided` / `contradicts` items it routed to `## Open decisions`
 - Issue dry-run bodies × 2 (android / ios) — **× 1 (lagging platform only) in the cross-platform parity path**
 - Next action (create issues yes/no; for case A, the implementation-status answer applied)
 
@@ -410,7 +419,8 @@ pm-agent then:
 - Runs case-C pre-checks: no `_context/api/alarm.md` → uses the supplied PR as a temporary spec source, adds the case-C warning banner to `_tasks`
 - Phase 0: inventories the multi-selected Figma nodes
 - Writes `_tasks/push-notification-settings.md` with the standard header (Case: C / API Spec: temporary — `https://github.com/myorg/myapp-backend/pull/NNN`, replace with `_context/api/alarm.md` after backend merge / Design source: figma — connected) and a `## Candidate assets` keyword list
-- Prints two GitHub issue dry-run bodies (android / ios) — not yet created
+- Returns the two issue drafts in a `Spec walkthrough: pending` block. /feat runs both platform agents' Spec walkthrough mode and re-invokes pm-agent, which folds each `undecided` / `contradicts` item into `## Open decisions` and the issue bodies' `## Cautions` (a `diverges` item goes to that platform's `## Cautions` only)
+- Prints two GitHub issue dry-run bodies (android / ios) under the `Spec walkthrough:` summary line — not yet created
 
 You approve issue creation, then hand `_tasks/push-notification-settings.md` to android-agent and ios-agent: each runs phase 1 (inventory via the `## Candidate assets` keywords → implement → diff report), then phase 2 after your explicit approval (commit + Draft PR).
 
